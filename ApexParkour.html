@@ -1,0 +1,4017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>APEX PARKOUR // OvO × VEX</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #F4F5F7;
+      font-family: 'Space Grotesk', sans-serif;
+      color: #111318;
+    }
+
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #F4F5F7;
+    }
+
+    canvas#gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .hud-pill {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1.5px solid rgba(17, 19, 24, 0.14);
+      box-shadow: 0 4px 14px rgba(17, 19, 24, 0.06);
+      border-radius: 12px;
+      transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .hud-btn:hover {
+      background: #FFFFFF;
+      border-color: #111318;
+      transform: translateY(-1px);
+    }
+
+    .hud-btn:active {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    .touch-pad-btn {
+      background: rgba(255, 255, 255, 0.8);
+      border: 2px solid rgba(17, 19, 24, 0.25);
+      box-shadow: 0 6px 18px rgba(17, 19, 24, 0.12);
+      border-radius: 16px;
+      color: #111318;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.06s ease, background-color 0.06s ease;
+    }
+
+    .touch-pad-btn.active, .touch-pad-btn:active {
+      background: #111318;
+      color: #FFFFFF;
+      border-color: #00B8FF;
+      transform: scale(0.94);
+    }
+
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(17, 19, 24, 0.05);
+      border-radius: 999px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(17, 19, 24, 0.25);
+      border-radius: 999px;
+    }
+
+    @keyframes toastSlideIn {
+      0% {
+        opacity: 0;
+        transform: translateX(36px) scale(0.95);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+    }
+
+    @keyframes toastSlideOut {
+      0% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translateX(36px) scale(0.95);
+      }
+    }
+
+    .toast-enter {
+      animation: toastSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .toast-exit {
+      animation: toastSlideOut 0.2s ease-in forwards;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <!-- Main Render Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Corner Dismissible Achievement Toast Stack -->
+    <div id="achievementToastContainer" class="pointer-events-none fixed top-20 right-3 sm:right-4 z-50 flex flex-col gap-2.5 w-72 sm:w-80"></div>
+
+    <!-- Minimalist Top Speedrun HUD -->
+    <div id="hudTop" class="pointer-events-none fixed top-0 left-0 right-0 z-20 flex flex-wrap items-center justify-between gap-2 p-2.5 sm:p-4">
+      <!-- Left: Level Indicator, Stars & Coins -->
+      <div class="pointer-events-auto flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <button id="btnHudLevelBadge" title="Select Level (1-15)" class="hud-pill hud-btn px-3 py-1.5 sm:px-3.5 sm:py-2 flex items-center gap-2.5 cursor-pointer text-left">
+          <span id="hudLevelBadgeDot" class="inline-block w-2.5 h-2.5 rounded-full bg-[#00B8FF]"></span>
+          <div>
+            <div id="hudLevelTag" class="text-[10px] font-bold uppercase tracking-wider text-[#6B7280] leading-none">LEVEL 01 / 15</div>
+            <div id="hudLevelName" class="font-mono-tech text-xs sm:text-sm font-extrabold text-[#111318] leading-tight mt-0.5">KINETIC BASICS</div>
+          </div>
+        </button>
+
+        <!-- Level Stars Tracker (3 Stars per Level) -->
+        <div class="hud-pill px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center gap-1.5" title="Level Stars Collected">
+          <div id="hudStarsRow" class="flex items-center gap-1 text-base leading-none">
+            <span data-hud-star="0" class="text-[#D1D5DB] transition-transform">★</span>
+            <span data-hud-star="1" class="text-[#D1D5DB] transition-transform">★</span>
+            <span data-hud-star="2" class="text-[#D1D5DB] transition-transform">★</span>
+          </div>
+        </div>
+
+        <!-- Level & Bank Coins Pill -->
+        <button id="btnOpenShopHud" title="Open Skin Shop" class="hud-pill hud-btn px-2.5 py-1.5 sm:px-3.5 sm:py-2 flex items-center gap-2 cursor-pointer border-[#F59E0B]/50">
+          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#F59E0B] text-[#111318] font-mono-tech text-[11px] font-extrabold shadow-inner">$</span>
+          <div class="text-left">
+            <div class="text-[9px] font-bold uppercase tracking-wider text-[#B45309] leading-none">LVL <span id="hudLevelCoins">0</span>/50</div>
+            <div id="hudCoins" class="font-mono-tech text-xs sm:text-sm font-extrabold text-[#111318] leading-tight mt-0.5">0</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Center: Speedrun Timer & Deaths -->
+      <div class="pointer-events-auto hud-pill px-3 py-1.5 sm:px-4 sm:py-2 flex items-center gap-3 sm:gap-4">
+        <div class="text-center">
+          <div class="text-[9px] font-bold uppercase tracking-widest text-[#6B7280] leading-none">TIME</div>
+          <div id="hudTimer" class="font-mono-tech text-sm sm:text-lg font-extrabold text-[#111318] leading-tight mt-0.5">00:00.00</div>
+        </div>
+        <div class="h-6 w-[1px] bg-[#E5E7EB]"></div>
+        <div class="text-center">
+          <div class="text-[9px] font-bold uppercase tracking-widest text-[#6B7280] leading-none">DEATHS</div>
+          <div id="hudDeaths" class="font-mono-tech text-sm sm:text-lg font-extrabold text-[#FF2346] leading-tight mt-0.5">0</div>
+        </div>
+      </div>
+
+      <!-- Right: Quick Controls -->
+      <div class="pointer-events-auto flex items-center gap-1.5">
+        <button id="btnMenuHud" title="Return to Main Menu" class="hud-pill hud-btn px-2.5 py-2 text-xs font-extrabold text-[#111318] cursor-pointer">
+          MENU
+        </button>
+        <button id="btnAchievementsHud" title="Achievements" class="hud-pill hud-btn px-2.5 py-2 text-xs font-extrabold text-[#0077A8] flex items-center gap-1 cursor-pointer">
+          <span>TROPHIES</span>
+          <span id="hudAchBadge" class="font-mono-tech text-[10px] px-1.5 py-0.5 bg-[#E0F2FE] rounded text-[#0369A1]">0/16</span>
+        </button>
+        <button id="btnShop" title="Skin Shop" class="hud-pill hud-btn px-2.5 py-2 text-xs font-extrabold text-[#B45309] cursor-pointer">
+          SHOP
+        </button>
+        <button id="btnRestartCP" title="Respawn at Checkpoint [R]" class="hud-pill hud-btn px-2.5 py-2 text-xs font-bold text-[#111318] flex items-center gap-1 cursor-pointer">
+          <span>RETRY</span>
+          <span class="hidden lg:inline font-mono-tech text-[10px] px-1.5 py-0.5 bg-[#F3F4F6] rounded text-[#6B7280]">R</span>
+        </button>
+        <button id="btnLevelSelect" title="Pause & Level Select [P / Esc]" class="hud-pill hud-btn px-2.5 py-2 text-xs font-bold text-[#111318] flex items-center gap-1 cursor-pointer">
+          <span>PAUSE</span>
+          <span class="hidden lg:inline font-mono-tech text-[10px] px-1.5 py-0.5 bg-[#F3F4F6] rounded text-[#6B7280]">P</span>
+        </button>
+        <button id="btnAudioToggle" title="Toggle Sound" class="hidden sm:flex hud-pill hud-btn px-2.5 py-2 text-xs font-bold text-[#111318] cursor-pointer">
+          SFX: ON
+        </button>
+        <button id="btnTouchToggle" title="Toggle Touch Controls" class="hud-pill hud-btn px-2.5 py-2 text-xs font-bold text-[#111318] cursor-pointer">
+          PAD
+        </button>
+      </div>
+    </div>
+
+    <!-- On-Screen Touch Controls -->
+    <div id="touchControls" class="hidden pointer-events-none fixed bottom-4 left-4 right-4 z-20 flex items-end justify-between">
+      <div class="pointer-events-auto flex gap-3">
+        <button id="touchLeft" class="touch-pad-btn w-16 h-16 sm:w-20 sm:h-20 text-2xl" aria-label="Move Left">◀</button>
+        <button id="touchRight" class="touch-pad-btn w-16 h-16 sm:w-20 sm:h-20 text-2xl" aria-label="Move Right">▶</button>
+      </div>
+      <div class="pointer-events-auto flex gap-3">
+        <button id="touchDown" class="touch-pad-btn w-16 h-16 sm:w-20 sm:h-20 text-xs tracking-wider" aria-label="Slide or Dive">SLIDE<br/>DIVE</button>
+        <button id="touchJump" class="touch-pad-btn w-20 h-20 sm:w-24 sm:h-24 text-sm tracking-wider border-[#00B8FF]" aria-label="Jump">JUMP</button>
+      </div>
+    </div>
+
+    <!-- Start / Main Menu Overlay -->
+    <div id="startOverlay" class="fixed inset-0 z-30 flex items-center justify-center bg-[#F4F5F7]/88 backdrop-blur-md p-4">
+      <div class="w-full max-w-2xl bg-white border-2 border-[#111318] rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="px-2.5 py-1 rounded-md bg-[#111318] text-white font-mono-tech text-xs font-bold tracking-wider">OVØ × VEX EDITION</span>
+            <span class="px-2.5 py-1 rounded-md bg-[#00B8FF]/15 text-[#0077A8] font-mono-tech text-xs font-bold">15 LEVELS • 45 STARS</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btnStartAchievements" class="px-3 py-1 rounded-lg bg-[#E0F2FE] hover:bg-[#BAE6FD] border border-[#38BDF8] text-[#0369A1] font-mono-tech text-xs font-extrabold cursor-pointer transition">
+              TROPHIES (<span id="startAchCount">0/16</span>)
+            </button>
+            <button id="btnStartShop" class="px-3 py-1 rounded-lg bg-[#FEF3C7] hover:bg-[#FDE68A] border border-[#F59E0B] text-[#B45309] font-mono-tech text-xs font-extrabold cursor-pointer transition">
+              SHOP (<span id="startCoinCount">0</span> $)
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-[#111318] leading-none">
+              APEX PARKOUR
+            </h1>
+            <p class="mt-2.5 text-sm sm:text-base text-[#4B5563] font-medium leading-relaxed">
+              Master 15 escalating architectural levels. Every level introduces new mechanics—from wall kicks and dive super-jumps to breaking floors and pulse lasers—with <strong class="text-[#111318]">50 coins</strong> and <strong class="text-[#B45309]">3 hidden stars</strong> each.
+            </p>
+          </div>
+        </div>
+
+        <!-- Overall Campaign Progress Summary -->
+        <div class="mt-4 grid grid-cols-3 gap-2.5 bg-[#F4F5F7] p-3 rounded-xl border border-[#E5E7EB] text-center">
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">LEVELS CLEARED</div>
+            <div id="menuLevelsCleared" class="font-mono-tech text-base sm:text-lg font-extrabold text-[#111318] mt-0.5">0 / 15</div>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">TOTAL STARS</div>
+            <div id="menuTotalStars" class="font-mono-tech text-base sm:text-lg font-extrabold text-[#F59E0B] mt-0.5">0 / 45 ★</div>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">BANK COINS</div>
+            <div id="menuTotalCoins" class="font-mono-tech text-base sm:text-lg font-extrabold text-[#0077A8] mt-0.5">0 $</div>
+          </div>
+        </div>
+
+        <!-- Controls Quick Reference -->
+        <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <div class="p-2.5 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
+            <div class="font-mono-tech font-extrabold text-[#111318]">A / D  •  ◀ / ▶</div>
+            <div class="text-[#6B7280] mt-0.5 font-medium">Sprint & Air Steer</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
+            <div class="font-mono-tech font-extrabold text-[#111318]">W / SPACE / ▲</div>
+            <div class="text-[#6B7280] mt-0.5 font-medium">Jump & Wall-Kick</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
+            <div class="font-mono-tech font-extrabold text-[#0077A8]">S / ▼ (GROUND)</div>
+            <div class="text-[#6B7280] mt-0.5 font-medium">Kinetic Low Slide</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
+            <div class="font-mono-tech font-extrabold text-[#FF2346]">S / ▼ (AIR) + JUMP</div>
+            <div class="text-[#6B7280] mt-0.5 font-medium">Dive → Super Jump</div>
+          </div>
+        </div>
+
+        <div class="mt-5 flex flex-col sm:flex-row gap-2.5">
+          <button id="btnStartRun" class="flex-1 py-3.5 px-6 rounded-xl bg-[#111318] hover:bg-[#1F242E] text-white font-extrabold text-base tracking-wide shadow-lg cursor-pointer transition transform active:scale-98">
+            PLAY LEVEL 01
+          </button>
+          <button id="btnOpenLevelsFromStart" class="py-3.5 px-5 rounded-xl bg-[#00B8FF] hover:bg-[#009CE0] text-[#111318] font-extrabold text-sm tracking-wide cursor-pointer transition">
+            SELECT LEVEL (1–15)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause & Level 1-15 Selector Modal -->
+    <div id="levelSelectModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-[#111318]/55 backdrop-blur-sm p-3 sm:p-4">
+      <div class="w-full max-w-4xl bg-white border-2 border-[#111318] rounded-2xl p-4 sm:p-6 shadow-2xl max-h-[90vh] flex flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#E5E7EB] pb-3">
+          <div>
+            <h2 id="levelModalTitle" class="text-xl font-extrabold text-[#111318]">PAUSED // SELECT LEVEL (01–15)</h2>
+            <p class="text-xs text-[#6B7280] font-medium">Choose any level 1–15. Each level features unique hazards, 50 coins, and 3 stars.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btnPauseMainMenu" class="px-3.5 py-1.5 rounded-lg bg-[#111318] hover:bg-[#1F242E] text-white text-xs font-extrabold cursor-pointer">
+              MAIN MENU
+            </button>
+            <button id="btnCloseLevelSelect" class="px-3.5 py-1.5 rounded-lg bg-[#F4F5F7] hover:bg-[#E5E7EB] text-xs font-extrabold text-[#111318] cursor-pointer">
+              RESUME [ESC]
+            </button>
+          </div>
+        </div>
+
+        <div id="levelGrid" class="custom-scroll mt-4 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-1">
+          <!-- Populated dynamically by JS -->
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-[#E5E7EB] flex flex-wrap items-center justify-between gap-2">
+          <button id="btnFullResetRun" class="px-4 py-2 rounded-xl bg-[#FF2346]/10 hover:bg-[#FF2346] text-[#FF2346] hover:text-white font-bold text-xs transition cursor-pointer">
+            RESTART CURRENT LEVEL (00:00.00)
+          </button>
+          <span class="font-mono-tech text-[11px] text-[#6B7280]">TIP: PRESS [R] ANYTIME TO RESPAWN AT CHECKPOINT</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Achievements Page Modal -->
+    <div id="achievementsModal" class="hidden fixed inset-0 flex items-center justify-center bg-[#111318]/55 backdrop-blur-sm p-3 sm:p-4" style="z-index: 45;">
+      <div class="w-full max-w-4xl bg-white border-2 border-[#111318] rounded-2xl p-4 sm:p-6 shadow-2xl max-h-[90vh] flex flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#E5E7EB] pb-3.5">
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h2 class="text-xl sm:text-2xl font-extrabold text-[#111318] tracking-tight">ACHIEVEMENTS // TROPHY VAULT</h2>
+              <span id="achProgressPill" class="font-mono-tech text-xs font-extrabold px-2.5 py-0.5 rounded bg-[#00B8FF]/20 text-[#0077A8]">0 / 16</span>
+            </div>
+            <p class="text-xs text-[#6B7280] font-medium mt-0.5">Unlock achievements through level mastery, star hunting, and movement tech (+15 coins each).</p>
+          </div>
+          <button id="btnCloseAchievements" class="px-3.5 py-2 rounded-xl bg-[#F4F5F7] hover:bg-[#E5E7EB] text-xs font-extrabold text-[#111318] cursor-pointer">
+            CLOSE
+          </button>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mt-3 w-full h-2.5 bg-[#E5E7EB] rounded-full overflow-hidden">
+          <div id="achProgressBar" class="h-full bg-[#00B8FF] transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <!-- Filter Buttons -->
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <button data-ach-filter="ALL" class="ach-filter-btn px-3 py-1 rounded-lg text-xs font-extrabold bg-[#111318] text-white cursor-pointer">ALL (16)</button>
+          <button data-ach-filter="UNLOCKED" class="ach-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-[#DCFCE7] text-[#15803D] hover:bg-[#BBF7D0] cursor-pointer">UNLOCKED</button>
+          <button data-ach-filter="LOCKED" class="ach-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB] cursor-pointer">LOCKED</button>
+        </div>
+
+        <!-- Achievements List Grid -->
+        <div id="achievementsGrid" class="custom-scroll mt-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 pr-1">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Skin Shop Modal -->
+    <div id="shopModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-[#111318]/55 backdrop-blur-sm p-3 sm:p-4">
+      <div class="w-full max-w-4xl bg-white border-2 border-[#111318] rounded-2xl p-4 sm:p-6 shadow-2xl max-h-[90vh] flex flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#E5E7EB] pb-3.5">
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h2 class="text-xl sm:text-2xl font-extrabold text-[#111318] tracking-tight">SKIN SHOP // ARMORY</h2>
+              <span class="font-mono-tech text-[11px] font-bold px-2 py-0.5 rounded bg-[#111318] text-white">12 SKINS • 5 RARITIES</span>
+            </div>
+            <p class="text-xs text-[#6B7280] font-medium mt-0.5">Spend your collected coins to unlock new runner styles across 5 rarities.</p>
+          </div>
+
+          <div class="flex items-center gap-2.5">
+            <div class="px-3.5 py-1.5 rounded-xl bg-[#FEF3C7] border border-[#F59E0B] flex items-center gap-2">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#F59E0B] text-[#111318] font-mono-tech text-xs font-extrabold">$</span>
+              <span id="shopCoinBalance" class="font-mono-tech text-sm sm:text-base font-extrabold text-[#111318]">0</span>
+            </div>
+            <button id="btnCloseShop" class="px-3.5 py-2 rounded-xl bg-[#F4F5F7] hover:bg-[#E5E7EB] text-xs font-extrabold text-[#111318] cursor-pointer">
+              CLOSE
+            </button>
+          </div>
+        </div>
+
+        <div id="shopFilterBar" class="flex flex-wrap gap-1.5 mt-3 pb-1">
+          <button data-rarity="ALL" class="shop-filter-btn px-3 py-1 rounded-lg text-xs font-extrabold bg-[#111318] text-white cursor-pointer">ALL (12)</button>
+          <button data-rarity="COMMON" class="shop-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB] cursor-pointer">COMMON</button>
+          <button data-rarity="RARE" class="shop-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-[#E0F2FE] text-[#0369A1] hover:bg-[#BAE6FD] cursor-pointer">RARE</button>
+          <button data-rarity="EPIC" class="shop-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-[#F3E8FF] text-[#7E22CE] hover:bg-[#E9D5FF] cursor-pointer">EPIC</button>
+          <button data-rarity="LEGENDARY" class="shop-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-[#FEF3C7] text-[#B45309] hover:bg-[#FDE68A] cursor-pointer">LEGENDARY</button>
+          <button data-rarity="MYTHIC" class="shop-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-[#FFE4E6] text-[#BE123C] hover:bg-[#FECDD3] cursor-pointer">MYTHIC</button>
+        </div>
+
+        <div id="shopGrid" class="custom-scroll mt-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-1">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Level Complete / Victory Modal (Shows 3 Stars & Performance) -->
+    <div id="victoryOverlay" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-[#111318]/65 backdrop-blur-md p-4">
+      <div class="w-full max-w-lg bg-white border-2 border-[#111318] rounded-2xl p-6 sm:p-8 shadow-2xl text-center">
+        <div id="victoryLevelBadge" class="inline-block px-3 py-1 rounded-full bg-[#10B981]/15 text-[#059669] font-mono-tech text-xs font-extrabold tracking-widest mb-1.5">
+          LEVEL 01 COMPLETE
+        </div>
+        <h2 id="victoryLevelTitle" class="text-2xl sm:text-3xl font-extrabold text-[#111318] tracking-tight">KINETIC BASICS</h2>
+
+        <!-- 3 Stars Performance Showcase -->
+        <div class="mt-4 py-3.5 px-4 rounded-2xl bg-[#FFFBEB] border-2 border-[#F59E0B]/40">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-[#B45309]">CHALLENGE STARS EARNED</div>
+          <div id="victoryStarsDisplay" class="mt-1.5 flex items-center justify-center gap-4 text-4xl sm:text-5xl">
+            <span data-v-star="0" class="text-[#D1D5DB] transition-all duration-300">★</span>
+            <span data-v-star="1" class="text-[#D1D5DB] transition-all duration-300">★</span>
+            <span data-v-star="2" class="text-[#D1D5DB] transition-all duration-300">★</span>
+          </div>
+          <div id="victoryStarVerdict" class="mt-1.5 text-xs font-extrabold text-[#92400E]">
+            2 / 3 STARS COLLECTED
+          </div>
+        </div>
+
+        <!-- Run Stats Grid -->
+        <div class="mt-4 grid grid-cols-4 gap-2 bg-[#F4F5F7] p-3.5 rounded-xl border border-[#E5E7EB]">
+          <div>
+            <div class="text-[9px] font-bold uppercase tracking-wider text-[#6B7280]">TIME</div>
+            <div id="victoryTime" class="font-mono-tech text-sm sm:text-base font-extrabold text-[#111318] mt-0.5">00:00.00</div>
+          </div>
+          <div>
+            <div class="text-[9px] font-bold uppercase tracking-wider text-[#6B7280]">COINS</div>
+            <div id="victoryCoins" class="font-mono-tech text-sm sm:text-base font-extrabold text-[#B45309] mt-0.5">0 / 50</div>
+          </div>
+          <div>
+            <div class="text-[9px] font-bold uppercase tracking-wider text-[#6B7280]">DEATHS</div>
+            <div id="victoryDeaths" class="font-mono-tech text-sm sm:text-base font-extrabold text-[#FF2346] mt-0.5">0</div>
+          </div>
+          <div>
+            <div class="text-[9px] font-bold uppercase tracking-wider text-[#6B7280]">RANK</div>
+            <div id="victoryRank" class="font-mono-tech text-base sm:text-lg font-extrabold text-[#00B8FF]">S+</div>
+          </div>
+        </div>
+
+        <div id="victoryBestRow" class="mt-2.5 text-xs font-mono-tech text-[#6B7280]">
+          LEVEL BEST TIME: <span id="victoryBestTime" class="font-bold text-[#111318]">--:--.--</span>
+        </div>
+        <p id="victoryNewRecord" class="hidden mt-1 text-xs font-extrabold uppercase tracking-widest text-[#10B981]">
+          ★ NEW LEVEL RECORD! ★
+        </p>
+
+        <div class="mt-5 flex flex-wrap sm:flex-nowrap gap-2">
+          <button id="btnVictoryMenu" class="py-3 px-3.5 rounded-xl bg-[#F4F5F7] hover:bg-[#E5E7EB] border border-[#D1D5DB] text-[#111318] font-extrabold text-xs cursor-pointer transition">
+            MAIN MENU
+          </button>
+          <button id="btnVictoryShop" class="py-3 px-3.5 rounded-xl bg-[#FEF3C7] hover:bg-[#FDE68A] border border-[#F59E0B] text-[#B45309] font-extrabold text-xs cursor-pointer transition">
+            SHOP
+          </button>
+          <button id="btnPlayAgain" class="py-3 px-3.5 rounded-xl bg-[#E5E7EB] hover:bg-[#D1D5DB] text-[#111318] font-extrabold text-xs cursor-pointer transition">
+            REPLAY
+          </button>
+          <button id="btnNextLevel" class="flex-1 py-3 px-4 rounded-xl bg-[#111318] hover:bg-[#1F242E] text-white font-extrabold text-xs sm:text-sm tracking-wide cursor-pointer transition">
+            NEXT LEVEL →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * APEX PARKOUR // OvO × VEX — 15-LEVEL EDITION
+     * Precision 60 FPS Fixed-Timestep Kinetic Platformer Engine
+     * ============================================================================
+     */
+
+    // --------------------------------------------------------------------------
+    // 1. ARCHITECTURAL COLOR PALETTE & TUNED PHYSICS CONSTANTS
+    // --------------------------------------------------------------------------
+    const COLORS = {
+      bg: '#F4F5F7',
+      gridMinor: 'rgba(17, 19, 24, 0.032)',
+      parallaxMonolith: '#EAECEF',
+      blockFill: '#1C2029',
+      blockEdge: '#111318',
+      blockHighlight: 'rgba(255, 255, 255, 0.08)',
+      hazard: '#FF2346',
+      hazardGlow: 'rgba(255, 35, 70, 0.28)',
+      cyan: '#00B8FF',
+      cyanGlow: 'rgba(0, 184, 255, 0.35)',
+      gold: '#F59E0B',
+      goldLight: '#FDE68A',
+      goldDark: '#B45309',
+      emerald: '#10B981',
+      crumble: '#4B5563',
+      wallText: 'rgba(17, 19, 24, 0.38)',
+      wallTextAccent: 'rgba(0, 140, 196, 0.6)'
+    };
+
+    const PHYS = {
+      FIXED_DT: 1 / 60,
+      GRAVITY: 1780,
+      FALL_GRAVITY_MULT: 1.16,
+      MAX_FALL_SPEED: 980,
+      DIVE_SPEED: 960,
+      RUN_SPEED: 430,
+      RUN_ACCEL: 4200,
+      GROUND_FRICTION: 14500,
+      AIR_ACCEL: 3200,
+      AIR_DRAG: 3800,
+      JUMP_VEL: -690,
+      SUPER_JUMP_VEL: -880,
+      WALL_SLIDE_MAX: 165,
+      WALL_JUMP_VX: 455,
+      WALL_JUMP_VY: -665,
+      SLIDE_INITIAL_BOOST: 545,
+      SLIDE_FRICTION: 680,
+      COYOTE_TIME: 0.11,
+      JUMP_BUFFER: 0.13,
+      SUPER_JUMP_WINDOW: 0.24,
+      PLAYER_W: 20,
+      STAND_H: 46,
+      SLIDE_H: 22
+    };
+
+    // --------------------------------------------------------------------------
+    // 2. LEVELS 1-15 METADATA (PROGRESSIVE MECHANIC UNLOCKS)
+    // --------------------------------------------------------------------------
+    const LEVELS_META = [
+      { id: 1,  name: 'KINETIC BASICS',    element: 'Sprint & Gap Jumps',          color: '#00B8FF', targetTime: 24 },
+      { id: 2,  name: 'LOW PROFILE',       element: '+ Kinetic Low Slides',        color: '#00B8FF', targetTime: 26 },
+      { id: 3,  name: 'VERTICAL SHAFT',    element: '+ Single & Dual Wall-Kicks',  color: '#0EA5E9', targetTime: 28 },
+      { id: 4,  name: 'SLAM & VAULT',      element: '+ Air-Dive Super Jumps',      color: '#0EA5E9', targetTime: 28 },
+      { id: 5,  name: 'HAZARD RHYTHM',     element: '+ Precision Spike Beds',      color: '#FF2346', targetTime: 30 },
+      { id: 6,  name: 'KINETIC SPRINGS',   element: '+ High-Launch Bounce Pads',   color: '#00B8FF', targetTime: 30 },
+      { id: 7,  name: 'OVERDRIVE STRIPS',  element: '+ Velocity Boost Strips',     color: '#0284C7', targetTime: 32 },
+      { id: 8,  name: 'FRAGILE SLATE',     element: '+ Breaking Floors',           color: '#F59E0B', targetTime: 32 },
+      { id: 9,  name: 'KINETIC TRAMS',     element: '+ Moving Platforms',          color: '#F59E0B', targetTime: 34 },
+      { id: 10, name: 'SHATTER ASCENT',    element: 'Breaking Floors + Wall-Kicks',color: '#D97706', targetTime: 36 },
+      { id: 11, name: 'PULSE GATES',       element: '+ Timed Pulse Lasers',        color: '#FF2346', targetTime: 35 },
+      { id: 12, name: 'LASER CHUTES',      element: 'Lasers + Slide Tunnels',      color: '#FF2346', targetTime: 36 },
+      { id: 13, name: 'ABYSS TRANSIT',     element: 'Moving Trams + Lasers',       color: '#E11D48', targetTime: 38 },
+      { id: 14, name: 'PRISM GAUNTLET',    element: 'Breaking Floors + Lasers',    color: '#9333EA', targetTime: 40 },
+      { id: 15, name: 'APEX MASTERY',      element: 'All Mechanics Combined',      color: '#10B981', targetTime: 46 }
+    ];
+
+    // --------------------------------------------------------------------------
+    // 3. ACHIEVEMENTS CATALOG (16 TROPHIES WITH CORNER TOAST POPUPS)
+    // --------------------------------------------------------------------------
+    const ACHIEVEMENTS_CATALOG = [
+      { id: 'first_steps',     title: 'First Stride',          desc: 'Complete Level 01 (Kinetic Basics).',                 icon: '🏁', reward: 15 },
+      { id: 'slide_master',    title: 'Low Profile',           desc: 'Complete Level 02 (Low Profile).',                    icon: '⚡', reward: 15 },
+      { id: 'wall_crawler',    title: 'Wall Walker',           desc: 'Complete Level 03 (Vertical Shaft).',                 icon: '🧗', reward: 15 },
+      { id: 'super_vaulter',   title: 'Kinetic Launch',        desc: 'Perform an Air-Dive Super Jump.',                     icon: '🚀', reward: 15 },
+      { id: 'fragile_footing', title: 'Lightfooted',           desc: 'Conquer Level 08 where breaking floors appear.',      icon: '🧱', reward: 15 },
+      { id: 'laser_dancer',    title: 'Laser Dancer',          desc: 'Conquer Level 11 where pulse lasers appear.',         icon: '🔴', reward: 15 },
+      { id: 'apex_conqueror',  title: 'Apex Conqueror',        desc: 'Complete all 15 levels of Apex Parkour.',             icon: '👑', reward: 15 },
+      { id: 'star_seeker',     title: 'Star Seeker',           desc: 'Collect your first challenge Star.',                  icon: '⭐', reward: 15 },
+      { id: 'constellation',   title: 'Constellation',         desc: 'Accumulate 15 Stars across levels.',                  icon: '✨', reward: 15 },
+      { id: 'star_perfection', title: 'Celestial 45',          desc: 'Collect all 45 Stars (3/3 on every level).',          icon: '🌟', reward: 15 },
+      { id: 'coin_collector',  title: 'Coin Runner',           desc: 'Collect 100 total coins across your runs.',           icon: '🪙', reward: 15 },
+      { id: 'coin_hoarder',    title: 'Vault Keeper',          desc: 'Collect 500 total coins across your runs.',           icon: '💰', reward: 15 },
+      { id: 'clean_sweep',     title: 'Clean Sweep 50/50',     desc: 'Collect all 50 coins in a single level.',             icon: '💎', reward: 15 },
+      { id: 'untouchable',     title: 'Untouchable',           desc: 'Finish any level with 0 deaths.',                     icon: '🛡️', reward: 15 },
+      { id: 'speed_demon',     title: 'Velocity S+',           desc: 'Achieve an S+ Rank on any level.',                    icon: '⏱️', reward: 15 },
+      { id: 'armory_collector',title: 'Armory Collector',      desc: 'Unlock at least 3 skins in the Skin Shop.',           icon: '🎨', reward: 15 }
+    ];
+
+    // --------------------------------------------------------------------------
+    // 4. SKIN SHOP CATALOG (12 SKINS ACROSS 5 RARITIES)
+    // --------------------------------------------------------------------------
+    const RARITY_META = {
+      COMMON:    { label: 'COMMON',    badgeBg: '#F3F4F6', badgeText: '#374151', border: '#D1D5DB' },
+      RARE:      { label: 'RARE',      badgeBg: '#E0F2FE', badgeText: '#0369A1', border: '#38BDF8' },
+      EPIC:      { label: 'EPIC',      badgeBg: '#F3E8FF', badgeText: '#7E22CE', border: '#C084FC' },
+      LEGENDARY: { label: 'LEGENDARY', badgeBg: '#FEF3C7', badgeText: '#B45309', border: '#F59E0B' },
+      MYTHIC:    { label: 'MYTHIC',    badgeBg: '#FFE4E6', badgeText: '#BE123C', border: '#FB7185' }
+    };
+
+    const SKINS_CATALOG = [
+      { id: 'classic',   name: 'Apex Ink',            rarity: 'COMMON',    price: 0,   bodyColor: '#111318', jointColor: '#00B8FF', desc: 'Standard architectural ink runner with cyan kinetic joints.' },
+      { id: 'cobalt',    name: 'Cobalt Striker',      rarity: 'COMMON',    price: 25,  bodyColor: '#1D4ED8', jointColor: '#60A5FA', desc: 'Deep blueprint cobalt chassis tuned for clean lines.' },
+      { id: 'crimson',   name: 'Crimson Dash',        rarity: 'COMMON',    price: 25,  bodyColor: '#DC2626', jointColor: '#FCA5A5', desc: 'High-contrast hazard-red runner frame.' },
+      { id: 'cyber',     name: 'Neon Cyborg',         rarity: 'RARE',      price: 60,  bodyColor: '#0F172A', jointColor: '#00B8FF', visorEye: '#00B8FF', glowColor: 'rgba(0, 184, 255, 0.35)', desc: 'Tactical obsidian shell with glowing cyan optical visor.' },
+      { id: 'emerald',   name: 'Jade Phantom',        rarity: 'RARE',      price: 60,  bodyColor: '#047857', jointColor: '#34D399', glowColor: 'rgba(16, 185, 129, 0.35)', trailColor: '#10B981', desc: 'Leaves a crisp emerald slipstream while sprinting.' },
+      { id: 'solar',     name: 'Solar Flare',         rarity: 'RARE',      price: 75,  bodyColor: '#D97706', jointColor: '#FDE047', visorEye: '#FEF08A', glowColor: 'rgba(245, 158, 11, 0.38)', desc: 'Radiant amber core with high-visibility visor.' },
+      { id: 'void',      name: 'Void Weaver',         rarity: 'EPIC',      price: 120, bodyColor: '#4C1D95', jointColor: '#C084FC', orbitShards: '#A855F7', glowColor: 'rgba(168, 85, 247, 0.42)', trailColor: '#9333EA', desc: 'Surrounded by three orbiting amethyst kinetic shards.' },
+      { id: 'cryo',      name: 'Cryo Specter',        rarity: 'EPIC',      price: 135, bodyColor: '#0369A1', jointColor: '#E0F2FE', visorEye: '#FFFFFF', orbitShards: '#38BDF8', glowColor: 'rgba(56, 189, 248, 0.45)', trailColor: '#38BDF8', desc: 'Sub-zero frost runner with crystalline orbiters.' },
+      { id: 'seraph',    name: 'Solar Seraph',        rarity: 'LEGENDARY', price: 200, bodyColor: '#B45309', jointColor: '#FDE68A', halo: '#F59E0B', plasmaWings: true, glowColor: 'rgba(245, 158, 11, 0.5)', trailColor: '#F59E0B', desc: 'Golden plasma wings and floating solar halo.' },
+      { id: 'sovereign', name: 'Abyssal Sovereign',   rarity: 'LEGENDARY', price: 225, bodyColor: '#111318', jointColor: '#FF2346', visorEye: '#FF2346', crown: true, orbitShards: '#FF2346', glowColor: 'rgba(255, 35, 70, 0.45)', trailColor: '#FF2346', desc: 'Crowned apex runner with crimson orbital blades.' },
+      { id: 'prismatic', name: 'Prismatic Overdrive', rarity: 'MYTHIC',    price: 350, bodyColor: '#111318', jointColor: '#00B8FF', prismatic: true, crown: true, pulseRings: true, trailColor: '#00B8FF', desc: 'Full-spectrum chromatic shifting frame with sonic pulse rings.' },
+      { id: 'celestial', name: 'Celestial Architect', rarity: 'MYTHIC',    price: 450, bodyColor: '#111318', jointColor: '#FDE68A', prismatic: true, plasmaWings: true, halo: '#F59E0B', orbitShards: '#00B8FF', pulseRings: true, desc: 'Ultimate mythic form combining wings, halo, shards, and prism core.' }
+    ];
+
+    function getSkinById(id) {
+      return SKINS_CATALOG.find(s => s.id === id) || SKINS_CATALOG[0];
+    }
+
+    // --------------------------------------------------------------------------
+    // 5. PROCEDURAL WEB AUDIO SOUND SYNTHESIZER
+    // --------------------------------------------------------------------------
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+
+      unlock() {
+        if (!this.enabled) return;
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      }
+
+      play(type) {
+        if (!this.enabled || !this.ctx || this.ctx.state !== 'running') return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        if (type === 'jump') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(240, now);
+          osc.frequency.exponentialRampToValueAtTime(540, now + 0.11);
+          gain.gain.setValueAtTime(0.11, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'superjump') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.18);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+          osc.start(now);
+          osc.stop(now + 0.19);
+        } else if (type === 'walljump') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(680, now + 0.1);
+          gain.gain.setValueAtTime(0.11, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+          osc.start(now);
+          osc.stop(now + 0.11);
+        } else if (type === 'slide') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(190, now);
+          osc.frequency.exponentialRampToValueAtTime(95, now + 0.12);
+          gain.gain.setValueAtTime(0.07, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+          osc.start(now);
+          osc.stop(now + 0.13);
+        } else if (type === 'slam') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.exponentialRampToValueAtTime(52, now + 0.12);
+          gain.gain.setValueAtTime(0.16, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+          osc.start(now);
+          osc.stop(now + 0.13);
+        } else if (type === 'bounce') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(760, now + 0.18);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+          osc.start(now);
+          osc.stop(now + 0.19);
+        } else if (type === 'checkpoint') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.07);
+          osc.frequency.setValueAtTime(783.99, now + 0.14);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc.start(now);
+          osc.stop(now + 0.28);
+        } else if (type === 'coin') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.setValueAtTime(1318.5, now + 0.055);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+          osc.start(now);
+          osc.stop(now + 0.16);
+        } else if (type === 'star') {
+          const freqs = [587.33, 880, 1174.66];
+          freqs.forEach((f, idx) => {
+            const o = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            o.type = 'triangle';
+            o.connect(g);
+            g.connect(this.ctx.destination);
+            const t = now + idx * 0.055;
+            o.frequency.setValueAtTime(f, t);
+            g.gain.setValueAtTime(0.13, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+            o.start(t);
+            o.stop(t + 0.29);
+          });
+        } else if (type === 'achievement') {
+          const freqs = [523.25, 659.25, 783.99, 1046.5];
+          freqs.forEach((f, idx) => {
+            const o = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            o.type = 'sine';
+            o.connect(g);
+            g.connect(this.ctx.destination);
+            const t = now + idx * 0.065;
+            o.frequency.setValueAtTime(f, t);
+            g.gain.setValueAtTime(0.12, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+            o.start(t);
+            o.stop(t + 0.31);
+          });
+        } else if (type === 'buy') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.setValueAtTime(554.37, now + 0.06);
+          osc.frequency.setValueAtTime(659.25, now + 0.12);
+          osc.frequency.setValueAtTime(880, now + 0.18);
+          gain.gain.setValueAtTime(0.13, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        } else if (type === 'death') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(190, now);
+          osc.frequency.exponentialRampToValueAtTime(55, now + 0.2);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc.start(now);
+          osc.stop(now + 0.22);
+        } else if (type === 'victory') {
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, idx) => {
+            const o = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            o.type = 'triangle';
+            o.connect(g);
+            g.connect(this.ctx.destination);
+            const t = now + idx * 0.09;
+            o.frequency.setValueAtTime(freq, t);
+            g.gain.setValueAtTime(0.13, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+            o.start(t);
+            o.stop(t + 0.33);
+          });
+        }
+      }
+    }
+
+    const sfx = new SoundEngine();
+
+    // --------------------------------------------------------------------------
+    // 6. PERSISTENT PROFILE, LEVEL PROGRESS, ACHIEVEMENTS & GAME STATE
+    // --------------------------------------------------------------------------
+    function loadSavedProfile() {
+      try {
+        const coins = parseInt(localStorage.getItem('apex_parkour_coins_v2') || '0', 10);
+        const lifetimeCoins = parseInt(localStorage.getItem('apex_parkour_lifetime_coins_v2') || String(coins || 0), 10);
+        const unlockedRaw = JSON.parse(localStorage.getItem('apex_parkour_unlocked_v2') || '["classic"]');
+        const equipped = localStorage.getItem('apex_parkour_equipped_v2') || 'classic';
+        const levelRecords = JSON.parse(localStorage.getItem('apex_parkour_levels_v2') || '{}');
+        const unlockedAch = JSON.parse(localStorage.getItem('apex_parkour_ach_v2') || '[]');
+        const unlocked = Array.isArray(unlockedRaw) && unlockedRaw.includes('classic') ? unlockedRaw : ['classic'];
+        return {
+          coins: Number.isFinite(coins) && coins >= 0 ? coins : 0,
+          lifetimeCoins: Number.isFinite(lifetimeCoins) && lifetimeCoins >= 0 ? lifetimeCoins : 0,
+          unlockedSkins: unlocked,
+          equippedSkin: unlocked.includes(equipped) ? equipped : 'classic',
+          levelRecords: levelRecords && typeof levelRecords === 'object' ? levelRecords : {},
+          unlockedAchievements: Array.isArray(unlockedAch) ? unlockedAch : []
+        };
+      } catch (e) {
+        return {
+          coins: 0,
+          lifetimeCoins: 0,
+          unlockedSkins: ['classic'],
+          equippedSkin: 'classic',
+          levelRecords: {},
+          unlockedAchievements: []
+        };
+      }
+    }
+
+    const savedProfile = loadSavedProfile();
+
+    const gameState = {
+      mode: 'start', // 'start' | 'playing' | 'paused' | 'victory'
+      currentLevel: 1,
+      elapsedTime: 0,
+      deaths: 0,
+      currentCheckpointIndex: 0, // 0 = Level Start Plaza; 1+ = Level Checkpoints
+      worldTime: 0,
+      shakeEnabled: false,
+      coins: savedProfile.coins,
+      lifetimeCoins: savedProfile.lifetimeCoins,
+      levelCoinsCollected: 0,
+      levelStarsCollected: [false, false, false],
+      unlockedSkins: savedProfile.unlockedSkins,
+      equippedSkin: savedProfile.equippedSkin,
+      levelRecords: savedProfile.levelRecords,
+      unlockedAchievements: savedProfile.unlockedAchievements,
+      shopFilter: 'ALL',
+      achFilter: 'ALL'
+    };
+
+    function savePersistentProgress() {
+      try {
+        localStorage.setItem('apex_parkour_coins_v2', String(gameState.coins));
+        localStorage.setItem('apex_parkour_lifetime_coins_v2', String(gameState.lifetimeCoins));
+        localStorage.setItem('apex_parkour_unlocked_v2', JSON.stringify(gameState.unlockedSkins));
+        localStorage.setItem('apex_parkour_equipped_v2', gameState.equippedSkin);
+        localStorage.setItem('apex_parkour_levels_v2', JSON.stringify(gameState.levelRecords));
+        localStorage.setItem('apex_parkour_ach_v2', JSON.stringify(gameState.unlockedAchievements));
+      } catch (e) {}
+    }
+
+    function getTotalStarsCount() {
+      let total = 0;
+      for (let id = 1; id <= 15; id++) {
+        const rec = gameState.levelRecords[id];
+        if (rec && Array.isArray(rec.stars)) {
+          total += rec.stars.filter(Boolean).length;
+        }
+      }
+      return total;
+    }
+
+    function getLevelsClearedCount() {
+      let count = 0;
+      for (let id = 1; id <= 15; id++) {
+        if (gameState.levelRecords[id]?.completed) count++;
+      }
+      return count;
+    }
+
+    // --------------------------------------------------------------------------
+    // 7. ACHIEVEMENT UNLOCK & DISMISSIBLE CORNER POPUP SYSTEM
+    // --------------------------------------------------------------------------
+    function unlockAchievement(achId) {
+      if (gameState.unlockedAchievements.includes(achId)) return;
+      const ach = ACHIEVEMENTS_CATALOG.find(a => a.id === achId);
+      if (!ach) return;
+
+      gameState.unlockedAchievements.push(achId);
+      gameState.coins += ach.reward;
+      gameState.lifetimeCoins += ach.reward;
+      savePersistentProgress();
+      sfx.play('achievement');
+      updateHUD();
+      showAchievementToast(ach);
+    }
+
+    function showAchievementToast(ach) {
+      const container = document.getElementById('achievementToastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = 'pointer-events-auto toast-enter bg-white border-2 border-[#111318] rounded-xl p-3 shadow-2xl flex items-start justify-between gap-2.5';
+      toast.innerHTML = `
+        <div class="flex items-start gap-2.5 min-w-0">
+          <div class="w-9 h-9 rounded-lg bg-[#FEF3C7] border border-[#F59E0B] flex items-center justify-center text-lg shrink-0">
+            ${ach.icon}
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="font-mono-tech text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#00B8FF]/20 text-[#0077A8]">ACHIEVEMENT</span>
+              <span class="font-mono-tech text-[10px] font-extrabold text-[#B45309]">+${ach.reward} $</span>
+            </div>
+            <div class="text-xs sm:text-sm font-extrabold text-[#111318] truncate mt-0.5">${ach.title}</div>
+            <div class="text-[11px] text-[#6B7280] leading-tight mt-0.5">${ach.desc}</div>
+          </div>
+        </div>
+        <button aria-label="Dismiss achievement notification" class="dismiss-toast-btn shrink-0 w-6 h-6 rounded-md bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#111318] font-mono-tech text-xs font-extrabold flex items-center justify-center cursor-pointer transition">
+          ✕
+        </button>
+      `;
+
+      let dismissed = false;
+      const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        toast.classList.remove('toast-enter');
+        toast.classList.add('toast-exit');
+        setTimeout(() => {
+          if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 210);
+      };
+
+      toast.querySelector('.dismiss-toast-btn').onclick = dismiss;
+      container.appendChild(toast);
+
+      setTimeout(dismiss, 6500);
+    }
+
+    function evaluateAchievements(context = {}) {
+      const totalStars = getTotalStarsCount();
+      if (totalStars >= 1) unlockAchievement('star_seeker');
+      if (totalStars >= 15) unlockAchievement('constellation');
+      if (totalStars >= 45) unlockAchievement('star_perfection');
+
+      if (gameState.lifetimeCoins >= 100) unlockAchievement('coin_collector');
+      if (gameState.lifetimeCoins >= 500) unlockAchievement('coin_hoarder');
+
+      if (gameState.unlockedSkins.length >= 3) unlockAchievement('armory_collector');
+
+      if (context.superJump) unlockAchievement('super_vaulter');
+
+      if (context.levelCompleted) {
+        const lvl = context.levelCompleted;
+        if (lvl === 1) unlockAchievement('first_steps');
+        if (lvl === 2) unlockAchievement('slide_master');
+        if (lvl === 3) unlockAchievement('wall_crawler');
+        if (lvl === 8) unlockAchievement('fragile_footing');
+        if (lvl === 11) unlockAchievement('laser_dancer');
+        if (getLevelsClearedCount() >= 15) unlockAchievement('apex_conqueror');
+
+        if (gameState.levelCoinsCollected >= 50) unlockAchievement('clean_sweep');
+        if (gameState.deaths === 0) unlockAchievement('untouchable');
+        if (context.rank === 'S+') unlockAchievement('speed_demon');
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 8. CAMERA & PLAYER STATE
+    // --------------------------------------------------------------------------
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const camera = {
+      x: 140,
+      y: 350,
+      lookAheadX: 0,
+      shakeMag: 0
+    };
+
+    const START_SPAWN = {
+      x: 140,
+      y: 480
+    };
+
+    const player = {
+      x: START_SPAWN.x,
+      y: START_SPAWN.y - PHYS.STAND_H,
+      w: PHYS.PLAYER_W,
+      h: PHYS.STAND_H,
+      vx: 0,
+      vy: 0,
+      facing: 1,
+      grounded: false,
+      onWall: 0,
+      sliding: false,
+      diving: false,
+      coyoteTimer: 0,
+      jumpBufferTimer: 0,
+      superJumpTimer: 0,
+      wallCoyoteTimer: 0,
+      wallCoyoteDir: 0,
+      runCycle: 0,
+      scaleX: 1,
+      scaleY: 1,
+      afterimages: [],
+      deadTimer: 0,
+      anim: {
+        runBlend: 0,
+        sprintBlend: 0,
+        airBlend: 0,
+        wallBlend: 0,
+        slideBlend: 0,
+        diveBlend: 0,
+        visualFacing: 1,
+        turnTilt: 0,
+        hipBob: 0
+      }
+    };
+
+    // --------------------------------------------------------------------------
+    // 9. 15 DISTINCT LEVEL BUILDERS (EACH WITH 50 COINS & 3 CHALLENGING STARS)
+    // --------------------------------------------------------------------------
+    const world = {
+      platforms: [],
+      spikes: [],
+      lasers: [],
+      crumbleBlocks: [],
+      movingPlatforms: [],
+      boostPads: [],
+      bouncePads: [],
+      checkpoints: [],
+      coins: [],
+      stars: [],
+      signs: [],
+      finishPortal: null,
+      particles: [],
+      floatingTexts: [],
+      finishX: 4000
+    };
+
+    function buildLevel(levelId) {
+      const w = world;
+      w.platforms = [];
+      w.spikes = [];
+      w.lasers = [];
+      w.crumbleBlocks = [];
+      w.movingPlatforms = [];
+      w.boostPads = [];
+      w.bouncePads = [];
+      w.checkpoints = [];
+      w.coins = [];
+      w.stars = [];
+      w.signs = [];
+      w.particles = [];
+      w.floatingTexts = [];
+      w.finishPortal = null;
+
+      const meta = LEVELS_META[levelId - 1] || LEVELS_META[0];
+
+      const addPlat = (x, y, width, height) => {
+        w.platforms.push({ x, y, w: width, h: height });
+      };
+
+      const addSpikeStrip = (x, y, count, dir = 'up') => {
+        const size = 16;
+        for (let i = 0; i < count; i++) {
+          w.spikes.push({ x: x + i * size, y, w: size, h: size, dir });
+        }
+      };
+
+      const addLaser = (x, y, width, height, period = 2.2, duty = 0.44, phase = 0) => {
+        w.lasers.push({ x, y, w: width, h: height, period, duty, phase, active: false, warning: false });
+      };
+
+      const addCrumble = (x, y, width = 115, height = 22) => {
+        w.crumbleBlocks.push({ x, y, w: width, h: height, state: 'solid', timer: 0 });
+      };
+
+      const addMovingPlat = (x, y, width, height, dx, dy, speed = 1.7) => {
+        w.movingPlatforms.push({ startX: x, startY: y, x, y, prevX: x, prevY: y, w: width, h: height, dx, dy, speed, phase: 0 });
+      };
+
+      const addBoost = (x, y, width = 140, dir = 1, power = 860) => {
+        w.boostPads.push({ x, y, w: width, h: 10, dir, power });
+      };
+
+      const addBounce = (x, y, width = 62, power = -980) => {
+        w.bouncePads.push({ x, y, w: width, h: 14, power, compression: 0 });
+      };
+
+      const addCP = (num, x, y, title) => {
+        w.checkpoints.push({ num, x, y, title, activated: false });
+      };
+
+      const addCoin = (x, y) => {
+        w.coins.push({
+          x,
+          y,
+          r: 12,
+          collected: false,
+          bobPhase: (x * 0.017 + y * 0.013) % (Math.PI * 2)
+        });
+      };
+
+      const addCoinLine = (x1, y1, x2, y2, count) => {
+        for (let i = 0; i < count; i++) {
+          const t = count === 1 ? 0 : i / (count - 1);
+          addCoin(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t);
+        }
+      };
+
+      const addCoinArc = (x1, y1, x2, y2, arcHeight, count) => {
+        for (let i = 0; i < count; i++) {
+          const t = count === 1 ? 0.5 : i / (count - 1);
+          const lx = x1 + (x2 - x1) * t;
+          const ly = y1 + (y2 - y1) * t - Math.sin(t * Math.PI) * arcHeight;
+          addCoin(lx, ly);
+        }
+      };
+
+      const addStar = (index, x, y) => {
+        w.stars.push({
+          index,
+          x,
+          y,
+          r: 16,
+          collected: false,
+          bobPhase: index * 1.4
+        });
+      };
+
+      const addSign = (x, y, title, sub = '', size = 23) => {
+        w.signs.push({ x, y, title, sub, size });
+      };
+
+      const setFinish = (x, y) => {
+        w.finishPortal = { x, y: y - 120, w: 64, h: 120 };
+        w.finishX = x;
+      };
+
+      // Left boundary wall & Starting Plaza common to all 15 levels
+      addPlat(-120, -900, 120, 1700);
+      addPlat(0, 480, 680, 280);
+      addSign(140, 325, `LEVEL ${String(levelId).padStart(2, '0')} // ${meta.name}`, meta.element.toUpperCase(), 23);
+
+      // ----------------------------------------------------------------------
+      // LEVEL 1: KINETIC BASICS (Sprint, Precision Jumps, Escalating Steps)
+      // ----------------------------------------------------------------------
+      if (levelId === 1) {
+        addCoinLine(320, 445, 620, 445, 7);
+
+        addPlat(820, 440, 420, 320);
+        addCoinArc(680, 445, 820, 405, 65, 5);
+        addCoinLine(900, 405, 1180, 405, 6);
+        addPlat(1260, 325, 90, 22);
+        addStar(0, 1305, 285);
+
+        addPlat(1400, 380, 520, 380);
+        addCP(1, 1480, 380, 'Mid Terrace');
+        addCoinLine(1560, 345, 1860, 345, 7);
+
+        addPlat(2080, 320, 360, 440);
+        addCoinArc(1920, 345, 2080, 285, 65, 5);
+        addPlat(2460, 205, 100, 22);
+        addStar(1, 2510, 165);
+
+        addPlat(2610, 360, 460, 400);
+        addCoinLine(2670, 325, 3010, 325, 7);
+
+        addPlat(3170, 415, 130, 24);
+        addStar(2, 3235, 375);
+        addCoinArc(3110, 325, 3360, 265, 80, 6);
+
+        addPlat(3380, 300, 680, 460);
+        addCoinLine(3440, 265, 3820, 265, 7);
+        setFinish(3920, 300);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 2: LOW PROFILE (Kinetic Slides & Slide-Jumps)
+      // ----------------------------------------------------------------------
+      else if (levelId === 2) {
+        addSign(340, 345, 'HOLD [S] OR [DOWN] TO SLIDE', 'SLIDE UNDER LOW WALLS & JUMP OUT OF SLIDES', 19);
+        addCoinLine(340, 445, 640, 445, 6);
+
+        addPlat(800, 480, 880, 280);
+        addPlat(920, 370, 65, 18);
+        addPlat(1020, 260, 220, 190);
+        addCoinLine(1035, 464, 1225, 464, 6);
+        addStar(0, 1130, 220);
+
+        addCP(1, 1560, 480, 'Chute Entry');
+        addPlat(1860, 440, 960, 320);
+        addCoinArc(1680, 445, 1860, 405, 65, 6);
+
+        addPlat(2040, 220, 180, 190);
+        addCoinLine(2055, 424, 2205, 424, 5);
+        addPlat(2420, 220, 180, 190);
+        addCoinLine(2435, 424, 2585, 424, 5);
+        addPlat(2270, 320, 90, 20);
+        addStar(1, 2315, 282);
+
+        // Extended final platform and portal set well past the last coin
+        addPlat(3060, 420, 960, 340);
+        addCoinArc(2820, 405, 3060, 385, 75, 7);
+        addPlat(3260, 200, 220, 190);
+        addCoinLine(3275, 404, 3465, 404, 7);
+        addPlat(3530, 305, 90, 20);
+        addStar(2, 3575, 265);
+        addCoinLine(3540, 385, 3740, 385, 8);
+        setFinish(3880, 420);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 3: VERTICAL SHAFT (Single & Dual Wall-Kicks)
+      // ----------------------------------------------------------------------
+      else if (levelId === 3) {
+        addSign(330, 345, 'WALL SLIDE & WALL KICK', 'JUMP ON SINGLE OR OPPOSITE WALLS', 19);
+        addCoinLine(340, 445, 620, 445, 6);
+
+        // Dual-wall chimney 1
+        addPlat(780, 480, 440, 280);
+        addPlat(960, 140, 44, 340);
+        addPlat(1176, 60, 44, 320);
+        addCoinLine(1068, 410, 1068, 130, 7);
+        addStar(0, 982, 95);
+
+        addPlat(1220, 240, 620, 520);
+        addCP(1, 1310, 240, 'Mid Ledge');
+        addCoinLine(1420, 205, 1780, 205, 7);
+
+        // Single-wall vertical climb
+        addPlat(1980, 340, 320, 420);
+        addPlat(2250, -60, 48, 400);
+        addCoinLine(2210, 280, 2210, -20, 7);
+        addStar(1, 2274, -102);
+
+        addPlat(2440, 120, 440, 640);
+        addCoinArc(2300, -40, 2440, 85, 60, 5);
+
+        // Dual chimney ascent to summit
+        addPlat(3020, 260, 440, 500);
+        addPlat(3220, -140, 44, 400);
+        addPlat(3416, -220, 44, 380);
+        addCoinLine(3318, 190, 3318, -140, 8);
+        addPlat(3070, -130, 95, 20);
+        addStar(2, 3118, -168);
+
+        addPlat(3460, -40, 680, 800);
+        addCoinLine(3540, -75, 3900, -75, 10);
+        setFinish(4000, -40);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 4: SLAM & VAULT (Air-Dive Slams -> Super Jumps)
+      // ----------------------------------------------------------------------
+      else if (levelId === 4) {
+        addSign(320, 345, 'AIR [S] DIVE -> LAND + JUMP = SUPER JUMP', 'VAULT OVER TALL BARRIERS', 19);
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addPlat(780, 480, 720, 280);
+        addPlat(1140, 330, 80, 150);
+        addCoinArc(960, 445, 1180, 280, 90, 6);
+        addStar(0, 1180, 245);
+
+        addPlat(1220, 420, 520, 340);
+        addCP(1, 1320, 420, 'Vault Terrace');
+        addCoinLine(1400, 385, 1680, 385, 6);
+
+        addPlat(1880, 420, 740, 340);
+        addPlat(2240, 245, 85, 175);
+        addCoinArc(2060, 385, 2282, 195, 105, 7);
+        addPlat(2040, 235, 95, 20);
+        addStar(1, 2088, 195);
+
+        addPlat(2325, 340, 540, 420);
+        addCoinLine(2420, 305, 2800, 305, 8);
+
+        addPlat(3000, 380, 760, 380);
+        addPlat(3340, 195, 90, 185);
+        addCoinArc(3160, 345, 3385, 145, 110, 8);
+        addStar(2, 3385, 115);
+
+        addPlat(3430, 280, 740, 480);
+        addCoinLine(3500, 245, 3900, 245, 9);
+        setFinish(4020, 280);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 5: HAZARD RHYTHM (Spike Beds, Precision Landings & Slide Pockets)
+      // ----------------------------------------------------------------------
+      else if (levelId === 5) {
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addPlat(780, 460, 860, 300);
+        addSpikeStrip(980, 444, 4, 'up');
+        addCoinArc(960, 420, 1080, 420, 75, 5);
+        addSpikeStrip(1260, 444, 4, 'up');
+        addCoinArc(1240, 420, 1360, 420, 75, 5);
+        addStar(0, 1300, 315);
+
+        addCP(1, 1520, 460, 'Spike Gauntlet');
+
+        addPlat(1780, 420, 220, 340);
+        addCoinLine(1820, 385, 1960, 385, 5);
+        addPlat(2140, 380, 220, 380);
+        addCoinLine(2180, 345, 2320, 345, 5);
+        addPlat(2200, 265, 90, 20);
+        addStar(1, 2245, 225);
+
+        addPlat(2500, 420, 960, 340);
+        addSpikeStrip(2640, 404, 3, 'up');
+        addPlat(2740, 315, 55, 18);
+        addPlat(2820, 235, 220, 155);
+        addCoinLine(2835, 404, 3025, 404, 7);
+        addSpikeStrip(3140, 404, 4, 'up');
+        addStar(2, 2930, 195);
+
+        addCoinArc(3120, 380, 3240, 380, 75, 7);
+        addPlat(3600, 380, 700, 380);
+        addCoinLine(3660, 345, 4040, 345, 10);
+        setFinish(4160, 380);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 6: KINETIC SPRINGS (Bounce Pads & Aerial Control)
+      // ----------------------------------------------------------------------
+      else if (levelId === 6) {
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addPlat(780, 480, 340, 280);
+        addBounce(980, 466, 66, -980);
+        addCoinLine(1013, 410, 1013, 210, 6);
+        addStar(0, 1013, 175);
+
+        addPlat(1260, 240, 520, 520);
+        addCP(1, 1360, 240, 'Spring Deck');
+        addCoinLine(1440, 205, 1720, 205, 7);
+
+        addPlat(1920, 380, 280, 380);
+        addBounce(2080, 366, 64, -1000);
+        addCoinLine(2112, 310, 2112, 100, 6);
+        addPlat(2320, 20, 48, 300);
+        addStar(1, 2344, -20);
+
+        addPlat(2500, 180, 460, 580);
+        addCoinLine(2580, 145, 2900, 145, 7);
+
+        addPlat(3100, 360, 220, 400);
+        addBounce(3180, 346, 64, -980);
+        addPlat(3480, 320, 220, 440);
+        addBounce(3560, 306, 64, -1020);
+        addCoinArc(3212, 160, 3592, 120, 90, 8);
+        addStar(2, 3592, 55);
+
+        addPlat(3840, 160, 680, 600);
+        addCoinLine(3920, 125, 4280, 125, 10);
+        setFinish(4380, 160);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 7: OVERDRIVE STRIPS (Speed Boosts, Long Leaps & Slide Chutes)
+      // ----------------------------------------------------------------------
+      else if (levelId === 7) {
+        addSign(320, 345, 'VELOCITY BOOST STRIPS', 'CARRY BOOST SPEED INTO SLIDES & LONG JUMPS', 19);
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addPlat(780, 480, 840, 280);
+        addBoost(920, 470, 160, 1, 880);
+        addCoinLine(1120, 445, 1560, 445, 8);
+
+        addPlat(1960, 480, 880, 280);
+        addCoinArc(1620, 445, 1960, 445, 95, 7);
+        addStar(0, 1790, 320);
+
+        addCP(1, 2060, 480, 'Turbo Runway');
+        addBoost(2220, 470, 160, 1, 880);
+        addPlat(2400, 380, 60, 18);
+        addPlat(2480, 285, 240, 165);
+        addCoinLine(2495, 464, 2705, 464, 7);
+        addStar(1, 2600, 245);
+
+        addPlat(3060, 440, 760, 320);
+        addCoinArc(2840, 445, 3060, 405, 80, 6);
+        addBoost(3180, 430, 170, 1, 900);
+        addSpikeStrip(3480, 424, 5, 'up');
+        addCoinArc(3460, 400, 3600, 400, 85, 6);
+        addStar(2, 3880, 265);
+
+        addPlat(4060, 380, 700, 380);
+        addCoinLine(4140, 345, 4520, 345, 10);
+        setFinish(4640, 380);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 8: FRAGILE SLATE (Breaking Floors Introduced!)
+      // ----------------------------------------------------------------------
+      else if (levelId === 8) {
+        addSign(310, 345, 'NEW ELEMENT // BREAKING FLOORS', 'CRUMBLING SLATE COLLAPSES SHORTLY AFTER CONTACT', 19);
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addCrumble(800, 460, 125);
+        addCrumble(995, 440, 125);
+        addCrumble(1190, 420, 125);
+        addCoinLine(860, 415, 1250, 375, 7);
+        addStar(0, 1058, 325);
+
+        addPlat(1400, 420, 480, 340);
+        addCP(1, 1490, 420, 'Slate Anchor');
+        addCoinLine(1580, 385, 1820, 385, 6);
+
+        addCrumble(1980, 370, 115);
+        addCrumble(2160, 310, 115);
+        addCrumble(2340, 250, 115);
+        addCrumble(2520, 190, 115);
+        addCoinLine(2035, 325, 2575, 145, 8);
+        addCrumble(2340, 135, 105);
+        addStar(1, 2392, 95);
+
+        addPlat(2720, 220, 460, 540);
+        addCoinLine(2800, 185, 3120, 185, 7);
+
+        addCrumble(3280, 220, 120);
+        addCrumble(3480, 260, 120);
+        addCrumble(3680, 300, 120);
+        addCoinLine(3340, 175, 3740, 255, 7);
+        addStar(2, 3740, 185);
+
+        addPlat(3900, 300, 680, 460);
+        addCoinLine(3980, 265, 4340, 265, 9);
+        setFinish(4460, 300);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 9: KINETIC TRAMS (Moving Platforms Introduced!)
+      // ----------------------------------------------------------------------
+      else if (levelId === 9) {
+        addSign(310, 345, 'NEW ELEMENT // KINETIC TRAMS', 'RIDE MOVING PLATFORMS & CARRY THEIR MOMENTUM', 19);
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addMovingPlat(800, 460, 145, 24, 260, 0, 1.7);
+        addCoinLine(840, 415, 1140, 415, 7);
+        addStar(0, 1000, 345);
+
+        addPlat(1300, 440, 460, 320);
+        addCP(1, 1390, 440, 'Tram Station');
+        addCoinLine(1480, 405, 1700, 405, 6);
+
+        addMovingPlat(1880, 260, 145, 24, 0, 190, 1.8);
+        addCoinLine(1952, 410, 1952, 220, 6);
+        addStar(1, 1952, 155);
+
+        addPlat(2140, 260, 460, 500);
+        addCoinLine(2220, 225, 2540, 225, 7);
+
+        addMovingPlat(2720, 280, 140, 24, 220, 0, 1.9);
+        addMovingPlat(3320, 240, 140, 24, -220, 0, 1.9);
+        addCoinLine(2780, 235, 3400, 195, 8);
+        addStar(2, 3090, 145);
+
+        addPlat(3580, 240, 680, 520);
+        addCoinLine(3660, 205, 4040, 205, 10);
+        setFinish(4160, 240);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 10: SHATTER ASCENT (Breaking Floors + Wall-Kicks + Bounce)
+      // ----------------------------------------------------------------------
+      else if (levelId === 10) {
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addCrumble(800, 460, 115);
+        addPlat(1020, 160, 48, 300);
+        addCrumble(1160, 260, 115);
+        addCoinLine(1090, 400, 1090, 180, 6);
+        addStar(0, 1044, 120);
+
+        addPlat(1380, 260, 460, 500);
+        addCP(1, 1470, 260, 'Mid Spire');
+        addCoinLine(1560, 225, 1780, 225, 6);
+
+        addBounce(1800, 246, 62, -980);
+        addCrumble(2000, 60, 120);
+        addCrumble(2200, 60, 120);
+        addCoinLine(2040, 15, 2280, 15, 7);
+        addStar(1, 2260, -45);
+
+        addPlat(2420, 100, 440, 660);
+        addCoinLine(2500, 65, 2800, 65, 7);
+
+        addCrumble(2980, 120, 120);
+        addPlat(3200, -180, 48, 300);
+        addCoinLine(3155, 60, 3155, -140, 8);
+        addPlat(3000, -140, 95, 20);
+        addStar(2, 3048, -178);
+
+        addPlat(3380, -60, 680, 820);
+        addCoinLine(3460, -95, 3840, -95, 10);
+        setFinish(3960, -60);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 11: PULSE GATES (Timed Pulse Lasers Introduced!)
+      // ----------------------------------------------------------------------
+      else if (levelId === 11) {
+        addSign(310, 345, 'NEW ELEMENT // PULSE LASERS', 'TIME YOUR SPRINTS BETWEEN LASER CYCLES', 19);
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addPlat(780, 480, 960, 280);
+        addLaser(1040, 300, 16, 180, 2.2, 0.44, 0.0);
+        addLaser(1360, 300, 16, 180, 2.2, 0.44, 1.1);
+        addCoinLine(1100, 445, 1300, 445, 7);
+        addPlat(1210, 345, 75, 18);
+        addPlat(1320, 230, 95, 20);
+        addStar(0, 1368, 192);
+
+        addCP(1, 1620, 480, 'Pulse Relay');
+
+        addPlat(1880, 420, 460, 340);
+        addLaser(2100, 240, 16, 180, 2.1, 0.43, 0.4);
+        addCoinLine(1940, 385, 2280, 385, 8);
+
+        addPlat(2480, 360, 460, 400);
+        addLaser(2700, 180, 16, 180, 2.1, 0.43, 1.45);
+        addCoinLine(2540, 325, 2880, 325, 8);
+        addPlat(2365, 260, 90, 20);
+        addStar(1, 2410, 222);
+
+        addPlat(3080, 360, 1060, 400);
+        addLaser(3320, 180, 16, 180, 2.0, 0.42, 0.0);
+        addLaser(3560, 180, 16, 180, 2.0, 0.42, 1.0);
+        addCoinLine(3360, 325, 3520, 325, 9);
+        addPlat(3400, 240, 95, 20);
+        addStar(2, 3448, 202);
+
+        addCoinLine(3640, 325, 3900, 325, 12);
+        setFinish(4020, 360);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 12: LASER CHUTES (Slide Tunnels + Pulse Lasers + Boosts)
+      // ----------------------------------------------------------------------
+      else if (levelId === 12) {
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addPlat(780, 480, 980, 280);
+        addPlat(940, 380, 60, 18);
+        addPlat(1020, 280, 240, 170);
+        addLaser(1133, 450, 14, 30, 2.0, 0.44, 0.3);
+        addCoinLine(1035, 465, 1245, 465, 7);
+        addStar(0, 1140, 242);
+
+        addCP(1, 1640, 480, 'Chute Airlock');
+
+        addPlat(1900, 440, 1120, 320);
+        addBoost(2000, 430, 150, 1, 860);
+        addPlat(2320, 240, 240, 170);
+        addLaser(2433, 410, 14, 30, 2.1, 0.43, 1.1);
+        addCoinLine(2335, 425, 2545, 425, 8);
+        addStar(1, 2660, 280);
+
+        addLaser(2780, 260, 16, 180, 2.1, 0.44, 0.2);
+        addCoinLine(2700, 405, 2940, 405, 8);
+
+        addPlat(3180, 380, 1020, 380);
+        addCoinArc(3020, 405, 3180, 345, 70, 5);
+        addPlat(3290, 280, 60, 18);
+        addPlat(3380, 180, 240, 170);
+        addLaser(3493, 350, 14, 30, 2.0, 0.43, 0.8);
+        addCoinLine(3395, 365, 3605, 365, 8);
+        addPlat(3455, 110, 90, 20);
+        addStar(2, 3500, 72);
+
+        addCoinLine(3720, 345, 3980, 345, 8);
+        setFinish(4080, 380);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 13: ABYSS TRANSIT (Moving Trams + Pulse Lasers + Spike Pits)
+      // ----------------------------------------------------------------------
+      else if (levelId === 13) {
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addMovingPlat(800, 460, 155, 24, 300, 0, 1.65);
+        addLaser(1020, 280, 16, 180, 2.3, 0.42, 0.4);
+        addCoinLine(850, 415, 1210, 415, 8);
+        addStar(0, 1028, 225);
+
+        addPlat(1380, 440, 460, 320);
+        addCP(1, 1470, 440, 'Abyss Dock');
+        addCoinLine(1560, 405, 1780, 405, 6);
+
+        addMovingPlat(1960, 240, 145, 24, 0, 200, 1.75);
+        addLaser(1940, 340, 185, 14, 2.3, 0.42, 1.2);
+        addCoinLine(2032, 410, 2032, 200, 7);
+        addStar(1, 2032, 135);
+
+        addPlat(2220, 240, 460, 520);
+        addCoinLine(2300, 205, 2620, 205, 7);
+
+        addMovingPlat(2800, 260, 155, 24, 320, 0, 1.7);
+        addLaser(3035, 80, 16, 180, 2.2, 0.42, 0.6);
+        addCoinLine(2850, 215, 3230, 215, 8);
+        addStar(2, 3043, 28);
+
+        addPlat(3400, 240, 700, 520);
+        addCoinLine(3480, 205, 3860, 205, 8);
+        setFinish(3980, 240);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 14: PRISM GAUNTLET (Breaking Floors + Lasers + Wall-Kicks)
+      // ----------------------------------------------------------------------
+      else if (levelId === 14) {
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addCrumble(800, 460, 120);
+        addLaser(1000, 280, 16, 180, 2.1, 0.42, 0.0);
+        addCrumble(1090, 460, 120);
+        addCrumble(1280, 440, 120);
+        addCoinLine(860, 415, 1340, 395, 8);
+        addStar(0, 1008, 265);
+
+        addPlat(1480, 420, 460, 340);
+        addCP(1, 1570, 420, 'Prism Core');
+        addCoinLine(1660, 385, 1880, 385, 6);
+
+        addPlat(2040, 100, 48, 320);
+        addPlat(2270, 20, 48, 320);
+        addLaser(2088, 250, 182, 14, 2.3, 0.41, 0.5);
+        addCoinLine(2155, 370, 2155, 90, 8);
+        addStar(1, 2294, -22);
+
+        addPlat(2318, 160, 480, 600);
+        addCoinLine(2400, 125, 2740, 125, 7);
+
+        addCrumble(2920, 180, 120);
+        addLaser(3120, 0, 16, 180, 2.1, 0.42, 1.0);
+        addCrumble(3210, 180, 120);
+        addCoinLine(2980, 135, 3270, 135, 7);
+        addStar(2, 3128, -10);
+
+        addPlat(3440, 180, 680, 580);
+        addCoinLine(3520, 145, 3880, 145, 8);
+        setFinish(4000, 180);
+      }
+
+      // ----------------------------------------------------------------------
+      // LEVEL 15: APEX MASTERY (All Mechanics Combined — Grand Finale!)
+      // ----------------------------------------------------------------------
+      else {
+        addSign(310, 345, 'FINAL CHALLENGE // APEX MASTERY', 'EVERY TECHNIQUE COMBINED — CLAIM THE CROWN', 19);
+        addCoinLine(340, 445, 620, 445, 6);
+
+        addPlat(780, 480, 920, 280);
+        addBoost(880, 470, 150, 1, 880);
+        addPlat(1380, 310, 80, 170);
+        addCoinArc(1180, 445, 1420, 260, 100, 6);
+        addStar(0, 1420, 215);
+
+        addPlat(1460, 360, 460, 400);
+        addCP(1, 1560, 360, 'Apex Relay 1');
+        addCoinLine(1640, 325, 1860, 325, 6);
+
+        addCrumble(2040, 360, 120);
+        addLaser(2240, 180, 16, 180, 2.1, 0.42, 0.3);
+        addCrumble(2330, 360, 120);
+        addCoinLine(2100, 315, 2390, 315, 7);
+
+        addMovingPlat(2580, 340, 145, 24, 240, 0, 1.8);
+        addCoinLine(2630, 295, 2930, 295, 6);
+        addStar(1, 2770, 205);
+
+        addPlat(3080, 340, 460, 420);
+        addCP(2, 3180, 340, 'Apex Relay 2');
+        addBounce(3380, 326, 64, -1020);
+        addCoinLine(3412, 270, 3412, 30, 5);
+
+        addPlat(3620, -140, 48, 320);
+        addPlat(3840, -220, 48, 320);
+        addCoinLine(3730, 120, 3730, -140, 6);
+        addStar(2, 3864, -262);
+
+        addPlat(3888, -60, 960, 820);
+        addPlat(4120, -260, 240, 170);
+        addLaser(4233, -90, 14, 30, 2.0, 0.42, 0.7);
+        addCoinLine(4135, -75, 4420, -75, 8);
+        setFinish(4680, -60);
+      }
+
+      // Enforce exact 50 coins per level
+      normalizeExact50Coins();
+      // Sanitize all spikes so none overlap inside solid terrain
+      sanitizeSpikes();
+    }
+
+    function normalizeExact50Coins() {
+      // Trim excess if any, or pad cleanly before the finish portal so every level has exactly 50 coins
+      if (world.coins.length > 50) {
+        world.coins.length = 50;
+      }
+      while (world.coins.length < 50) {
+        const ref = world.coins[world.coins.length - 1] || { x: 400, y: 445 };
+        world.coins.push({
+          x: ref.x + 26,
+          y: ref.y,
+          r: 12,
+          collected: false,
+          bobPhase: world.coins.length * 0.4
+        });
+      }
+    }
+
+    function sanitizeSpikes() {
+      world.spikes = world.spikes.filter(sp => {
+        const cx = sp.x + sp.w * 0.5;
+        const cy = sp.y + sp.h * 0.5;
+        for (const p of world.platforms) {
+          if (cx > p.x + 1 && cx < p.x + p.w - 1 && cy > p.y + 1 && cy < p.y + p.h - 1) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 10. INPUT HANDLING (KEYBOARD + TOUCH)
+    // --------------------------------------------------------------------------
+    const input = {
+      left: false,
+      right: false,
+      up: false,
+      down: false,
+      jumpPressedThisFrame: false,
+      jumpReleasedThisFrame: false,
+      downPressedThisFrame: false
+    };
+
+    window.addEventListener('keydown', (e) => {
+      sfx.unlock();
+      const code = e.code;
+
+      if (code === 'Escape' || code === 'KeyP') {
+        if (!document.getElementById('shopModal').classList.contains('hidden')) {
+          closeShopModal();
+          return;
+        }
+        if (!document.getElementById('achievementsModal').classList.contains('hidden')) {
+          closeAchievementsModal();
+          return;
+        }
+        if (gameState.mode === 'playing') {
+          openLevelSelect();
+        } else if (gameState.mode === 'paused') {
+          closeLevelSelect();
+        }
+        return;
+      }
+
+      if (code === 'KeyR') {
+        if (gameState.mode === 'playing' || gameState.mode === 'victory') {
+          if (gameState.mode === 'victory') {
+            document.getElementById('victoryOverlay').classList.add('hidden');
+            gameState.mode = 'playing';
+          }
+          respawnPlayer();
+        }
+        return;
+      }
+
+      if (code === 'ArrowLeft' || code === 'KeyA') input.left = true;
+      if (code === 'ArrowRight' || code === 'KeyD') input.right = true;
+      if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') {
+        if (!input.up) input.jumpPressedThisFrame = true;
+        input.up = true;
+        if (code === 'Space') e.preventDefault();
+      }
+      if (code === 'ArrowDown' || code === 'KeyS') {
+        if (!input.down) input.downPressedThisFrame = true;
+        input.down = true;
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      const code = e.code;
+      if (code === 'ArrowLeft' || code === 'KeyA') input.left = false;
+      if (code === 'ArrowRight' || code === 'KeyD') input.right = false;
+      if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') {
+        input.up = false;
+        input.jumpReleasedThisFrame = true;
+      }
+      if (code === 'ArrowDown' || code === 'KeyS') {
+        input.down = false;
+      }
+    });
+
+    function bindTouchButton(btnId, onDown, onUp) {
+      const el = document.getElementById(btnId);
+      if (!el) return;
+      const start = (e) => {
+        e.preventDefault();
+        sfx.unlock();
+        el.classList.add('active');
+        onDown();
+      };
+      const end = (e) => {
+        e.preventDefault();
+        el.classList.remove('active');
+        onUp();
+      };
+      el.addEventListener('touchstart', start, { passive: false });
+      el.addEventListener('touchend', end, { passive: false });
+      el.addEventListener('touchcancel', end, { passive: false });
+      el.addEventListener('mousedown', start);
+      el.addEventListener('mouseup', end);
+      el.addEventListener('mouseleave', end);
+    }
+
+    bindTouchButton('touchLeft', () => { input.left = true; }, () => { input.left = false; });
+    bindTouchButton('touchRight', () => { input.right = true; }, () => { input.right = false; });
+    bindTouchButton(
+      'touchDown',
+      () => {
+        if (!input.down) input.downPressedThisFrame = true;
+        input.down = true;
+      },
+      () => { input.down = false; }
+    );
+    bindTouchButton(
+      'touchJump',
+      () => {
+        if (!input.up) input.jumpPressedThisFrame = true;
+        input.up = true;
+      },
+      () => {
+        input.up = false;
+        input.jumpReleasedThisFrame = true;
+      }
+    );
+
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      document.getElementById('touchControls').classList.remove('hidden');
+    }
+
+    // --------------------------------------------------------------------------
+    // 11. PARTICLES, FLOATING TEXT & PLAYER RESPAWN
+    // --------------------------------------------------------------------------
+    function spawnParticles(x, y, count, color, speedMin, speedMax, angleMin = 0, angleMax = Math.PI * 2, lifeMin = 0.2, lifeMax = 0.45, size = 4) {
+      for (let i = 0; i < count; i++) {
+        const angle = angleMin + Math.random() * (angleMax - angleMin);
+        const speed = speedMin + Math.random() * (speedMax - speedMin);
+        const life = lifeMin + Math.random() * (lifeMax - lifeMin);
+        world.particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life,
+          maxLife: life,
+          color,
+          size: size * (0.65 + Math.random() * 0.7)
+        });
+      }
+    }
+
+    function spawnFloatingText(x, y, text, color = '#111318') {
+      world.floatingTexts.push({
+        x, y,
+        vy: -55,
+        text,
+        color,
+        life: 0.8,
+        maxLife: 0.8
+      });
+    }
+
+    function getCurrentSpawnData() {
+      if (gameState.currentCheckpointIndex <= 0) {
+        return START_SPAWN;
+      }
+      const cp = world.checkpoints[gameState.currentCheckpointIndex - 1];
+      return cp || START_SPAWN;
+    }
+
+    function respawnPlayer() {
+      const spawn = getCurrentSpawnData();
+      player.x = spawn.x - player.w * 0.5;
+      player.y = spawn.y - PHYS.STAND_H;
+      player.w = PHYS.PLAYER_W;
+      player.h = PHYS.STAND_H;
+      player.vx = 0;
+      player.vy = 0;
+      player.facing = 1;
+      player.grounded = false;
+      player.onWall = 0;
+      player.sliding = false;
+      player.diving = false;
+      player.coyoteTimer = 0;
+      player.jumpBufferTimer = 0;
+      player.superJumpTimer = 0;
+      player.wallCoyoteTimer = 0;
+      player.scaleX = 1;
+      player.scaleY = 1;
+      player.afterimages = [];
+      player.anim.visualFacing = 1;
+      player.anim.slideBlend = 0;
+      player.anim.diveBlend = 0;
+      player.anim.wallBlend = 0;
+      player.anim.runBlend = 0;
+      player.anim.sprintBlend = 0;
+
+      for (const cb of world.crumbleBlocks) {
+        cb.state = 'solid';
+        cb.timer = 0;
+      }
+
+      spawnParticles(spawn.x, spawn.y - 22, 12, COLORS.cyan, 60, 200, 0, Math.PI * 2, 0.2, 0.4, 4);
+      updateHUD();
+    }
+
+    function killPlayer() {
+      if (player.deadTimer > 0) return;
+      sfx.play('death');
+      gameState.deaths++;
+      spawnParticles(
+        player.x + player.w * 0.5,
+        player.y + player.h * 0.5,
+        24,
+        COLORS.hazard,
+        90,
+        360,
+        0,
+        Math.PI * 2,
+        0.25,
+        0.55,
+        5
+      );
+      respawnPlayer();
+    }
+
+    // --------------------------------------------------------------------------
+    // 12. COLLISION HELPERS & FIXED-TIMESTEP PHYSICS UPDATE
+    // --------------------------------------------------------------------------
+    function aabbOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+      return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+    }
+
+    function canStandUp() {
+      const standY = player.y + player.h - PHYS.STAND_H;
+      for (const p of world.platforms) {
+        if (aabbOverlap(player.x + 1, standY, player.w - 2, PHYS.STAND_H - 2, p.x, p.y, p.w, p.h)) {
+          return false;
+        }
+      }
+      for (const cb of world.crumbleBlocks) {
+        if (cb.state !== 'broken' && aabbOverlap(player.x + 1, standY, player.w - 2, PHYS.STAND_H - 2, cb.x, cb.y, cb.w, cb.h)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function updatePhysics(dt) {
+      gameState.worldTime += dt;
+
+      // Update Moving Platforms
+      for (const mp of world.movingPlatforms) {
+        mp.prevX = mp.x;
+        mp.prevY = mp.y;
+        mp.phase += mp.speed * dt;
+        const s = (Math.sin(mp.phase) + 1) * 0.5;
+        mp.x = mp.startX + mp.dx * s;
+        mp.y = mp.startY + mp.dy * s;
+      }
+
+      // Update Crumbling Blocks
+      for (const cb of world.crumbleBlocks) {
+        if (cb.state === 'shaking') {
+          cb.timer += dt;
+          if (cb.timer >= 0.42) {
+            cb.state = 'broken';
+            cb.timer = 0;
+            spawnParticles(cb.x + cb.w * 0.5, cb.y + cb.h * 0.5, 10, COLORS.crumble, 40, 160);
+          }
+        } else if (cb.state === 'broken') {
+          cb.timer += dt;
+          if (cb.timer >= 2.6) {
+            cb.state = 'solid';
+            cb.timer = 0;
+          }
+        }
+      }
+
+      // Update Timed Lasers
+      for (const lz of world.lasers) {
+        const t = (gameState.worldTime + lz.phase) % lz.period;
+        const ratio = t / lz.period;
+        lz.active = ratio < lz.duty;
+        lz.warning = !lz.active && ratio > (1 - 0.16);
+      }
+
+      // Update Bounce Pads
+      for (const bp of world.bouncePads) {
+        if (bp.compression > 0) {
+          bp.compression = Math.max(0, bp.compression - dt * 5);
+        }
+      }
+
+      // Update Coins (direct contact pickup without magnetic attraction)
+      for (const c of world.coins) {
+        if (c.collected) continue;
+        const closestX = Math.max(player.x, Math.min(c.x, player.x + player.w));
+        const closestY = Math.max(player.y, Math.min(c.y, player.y + player.h));
+        const dist = Math.hypot(c.x - closestX, c.y - closestY);
+        if (dist <= c.r + 3) {
+          c.collected = true;
+          gameState.coins += 1;
+          gameState.lifetimeCoins += 1;
+          gameState.levelCoinsCollected += 1;
+          savePersistentProgress();
+          sfx.play('coin');
+          spawnParticles(c.x, c.y, 7, COLORS.gold, 50, 170, 0, Math.PI * 2, 0.18, 0.34, 3.5);
+          spawnFloatingText(c.x, c.y - 12, '+1', '#B45309');
+          evaluateAchievements();
+          updateHUD();
+        }
+      }
+
+      // Update Challenge Stars (3 per level)
+      for (const st of world.stars) {
+        if (st.collected) continue;
+        const closestX = Math.max(player.x, Math.min(st.x, player.x + player.w));
+        const closestY = Math.max(player.y, Math.min(st.y, player.y + player.h));
+        const dist = Math.hypot(st.x - closestX, st.y - closestY);
+        if (dist <= st.r + 4) {
+          st.collected = true;
+          gameState.levelStarsCollected[st.index] = true;
+
+          // Persist best stars for this level immediately
+          const rec = gameState.levelRecords[gameState.currentLevel] || {
+            completed: false,
+            bestTime: null,
+            bestCoins: 0,
+            stars: [false, false, false]
+          };
+          rec.stars[st.index] = true;
+          gameState.levelRecords[gameState.currentLevel] = rec;
+          savePersistentProgress();
+
+          sfx.play('star');
+          spawnParticles(st.x, st.y, 18, COLORS.gold, 70, 240, 0, Math.PI * 2, 0.25, 0.55, 5);
+          spawnFloatingText(st.x, st.y - 18, `STAR ${st.index + 1} / 3 ★`, '#B45309');
+          evaluateAchievements();
+          updateHUD();
+        }
+      }
+
+      if (gameState.mode !== 'playing') {
+        updateParticlesAndText(dt);
+        return;
+      }
+
+      gameState.elapsedTime += dt;
+
+      // Carry player on moving platform
+      if (player.grounded) {
+        for (const mp of world.movingPlatforms) {
+          if (
+            Math.abs((player.y + player.h) - mp.prevY) < 4 &&
+            player.x + player.w > mp.prevX &&
+            player.x < mp.prevX + mp.w
+          ) {
+            player.x += mp.x - mp.prevX;
+            player.y += mp.y - mp.prevY;
+          }
+        }
+      }
+
+      // Timers
+      if (player.grounded) {
+        player.coyoteTimer = PHYS.COYOTE_TIME;
+      } else {
+        player.coyoteTimer = Math.max(0, player.coyoteTimer - dt);
+      }
+
+      if (player.onWall !== 0 && !player.grounded) {
+        player.wallCoyoteTimer = 0.13;
+        player.wallCoyoteDir = player.onWall;
+      } else {
+        player.wallCoyoteTimer = Math.max(0, player.wallCoyoteTimer - dt);
+      }
+
+      if (input.jumpPressedThisFrame) {
+        player.jumpBufferTimer = PHYS.JUMP_BUFFER;
+      } else {
+        player.jumpBufferTimer = Math.max(0, player.jumpBufferTimer - dt);
+      }
+
+      if (player.superJumpTimer > 0) {
+        player.superJumpTimer = Math.max(0, player.superJumpTimer - dt);
+      }
+
+      // Horizontal direction input
+      const moveDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+      if (moveDir !== 0 && !player.sliding) {
+        player.facing = moveDir;
+      }
+
+      // Slide & Air-Dive State Transitions
+      if (player.grounded) {
+        player.diving = false;
+        if (input.down) {
+          if (!player.sliding) {
+            player.sliding = true;
+            const bottom = player.y + player.h;
+            player.h = PHYS.SLIDE_H;
+            player.y = bottom - player.h;
+            const slideDir = moveDir !== 0 ? moveDir : player.facing;
+            player.facing = slideDir;
+            if (Math.abs(player.vx) < PHYS.SLIDE_INITIAL_BOOST) {
+              player.vx = slideDir * PHYS.SLIDE_INITIAL_BOOST;
+            }
+            sfx.play('slide');
+            spawnParticles(player.x + player.w * 0.5, player.y + player.h, 6, '#6B7280', 30, 120, Math.PI, Math.PI * 2, 0.15, 0.3, 3.5);
+          }
+        } else if (player.sliding && canStandUp()) {
+          player.sliding = false;
+          const bottom = player.y + player.h;
+          player.h = PHYS.STAND_H;
+          player.y = bottom - player.h;
+        }
+      } else {
+        if (player.sliding && canStandUp()) {
+          player.sliding = false;
+          const bottom = player.y + player.h;
+          player.h = PHYS.STAND_H;
+          player.y = bottom - player.h;
+        }
+
+        if (input.downPressedThisFrame && !player.diving && player.onWall === 0) {
+          player.diving = true;
+          player.vy = Math.max(player.vy, PHYS.DIVE_SPEED);
+          player.vx *= 0.45;
+          player.scaleX = 0.72;
+          player.scaleY = 1.32;
+          sfx.play('slide');
+        }
+      }
+
+      // Horizontal Velocity Integration
+      if (player.sliding) {
+        const friction = PHYS.SLIDE_FRICTION * dt;
+        if (Math.abs(player.vx) <= friction) {
+          player.vx = 0;
+        } else {
+          player.vx -= Math.sign(player.vx) * friction;
+        }
+        if (moveDir !== 0) {
+          player.vx += moveDir * 320 * dt;
+          if (Math.abs(player.vx) > 220) {
+            player.facing = Math.sign(player.vx);
+          }
+        }
+      } else {
+        const accel = player.grounded ? PHYS.RUN_ACCEL : PHYS.AIR_ACCEL;
+        if (moveDir !== 0) {
+          if (Math.sign(player.vx) !== 0 && Math.sign(player.vx) !== moveDir) {
+            const turnAccel = player.grounded ? 11500 : 6200;
+            player.vx += moveDir * turnAccel * dt;
+          } else if (Math.abs(player.vx) < PHYS.RUN_SPEED) {
+            const ratio = Math.abs(player.vx) / PHYS.RUN_SPEED;
+            const curve = 1.15 - ratio * 0.45;
+            player.vx += moveDir * accel * curve * dt;
+            if (Math.abs(player.vx) > PHYS.RUN_SPEED) {
+              player.vx = moveDir * PHYS.RUN_SPEED;
+            }
+          } else {
+            player.vx += (moveDir * PHYS.RUN_SPEED - player.vx) * Math.min(1, 5.5 * dt);
+          }
+        } else {
+          const decel = (player.grounded ? PHYS.GROUND_FRICTION : PHYS.AIR_DRAG) * dt;
+          if (Math.abs(player.vx) <= decel) {
+            player.vx = 0;
+          } else {
+            player.vx -= Math.sign(player.vx) * decel;
+          }
+        }
+      }
+
+      // Jump Execution
+      if (player.jumpBufferTimer > 0) {
+        if (player.coyoteTimer > 0) {
+          if (player.sliding && !canStandUp()) {
+            // Low tunnel: stay crouched
+          } else {
+            const wasSliding = player.sliding;
+            if (player.sliding) {
+              player.sliding = false;
+              const bottom = player.y + player.h;
+              player.h = PHYS.STAND_H;
+              player.y = bottom - player.h;
+            }
+
+            if (player.superJumpTimer > 0) {
+              player.vy = PHYS.SUPER_JUMP_VEL;
+              player.superJumpTimer = 0;
+              player.scaleX = 0.68;
+              player.scaleY = 1.38;
+              sfx.play('superjump');
+              spawnParticles(player.x + player.w * 0.5, player.y + player.h, 14, COLORS.cyan, 80, 260, Math.PI, Math.PI * 2, 0.2, 0.45, 4.5);
+              spawnFloatingText(player.x + player.w * 0.5, player.y - 10, 'SUPER JUMP!', COLORS.cyan);
+              evaluateAchievements({ superJump: true });
+            } else {
+              player.vy = PHYS.JUMP_VEL;
+              if (wasSliding) {
+                const jumpDir = moveDir !== 0 ? moveDir : player.facing;
+                player.facing = jumpDir;
+                player.vx = jumpDir * Math.max(Math.abs(player.vx), PHYS.RUN_SPEED * 1.15);
+              }
+              player.scaleX = 0.78;
+              player.scaleY = 1.24;
+              sfx.play('jump');
+              spawnParticles(player.x + player.w * 0.5, player.y + player.h, 6, '#9CA3AF', 30, 120, Math.PI, Math.PI * 2, 0.15, 0.3, 3);
+            }
+
+            player.grounded = false;
+            player.coyoteTimer = 0;
+            player.jumpBufferTimer = 0;
+          }
+        } else if (player.onWall !== 0 || player.wallCoyoteTimer > 0) {
+          const wallDir = player.onWall !== 0 ? player.onWall : player.wallCoyoteDir;
+          const kickDir = -wallDir;
+          const pushingAway = moveDir === kickDir;
+
+          player.vx = kickDir * (pushingAway ? PHYS.WALL_JUMP_VX : PHYS.WALL_JUMP_VX * 0.78);
+          player.vy = pushingAway ? PHYS.WALL_JUMP_VY : PHYS.WALL_JUMP_VY * 1.04;
+          player.facing = kickDir;
+          player.diving = false;
+          player.onWall = 0;
+          player.wallCoyoteTimer = 0;
+          player.jumpBufferTimer = 0;
+          player.scaleX = 0.75;
+          player.scaleY = 1.28;
+          sfx.play('walljump');
+          spawnParticles(
+            wallDir === 1 ? player.x + player.w : player.x,
+            player.y + player.h * 0.5,
+            10,
+            COLORS.cyan,
+            60,
+            210,
+            0,
+            Math.PI * 2,
+            0.18,
+            0.35,
+            4
+          );
+        }
+      }
+
+      // Variable Jump Height
+      if (input.jumpReleasedThisFrame && player.vy < -230 && player.superJumpTimer <= 0) {
+        player.vy *= 0.56;
+      }
+
+      // Gravity Integration
+      if (player.diving) {
+        player.vy = PHYS.DIVE_SPEED;
+      } else {
+        const grav = player.vy > 0 ? PHYS.GRAVITY * PHYS.FALL_GRAVITY_MULT : PHYS.GRAVITY;
+        player.vy += grav * dt;
+
+        if (player.onWall !== 0 && player.vy > PHYS.WALL_SLIDE_MAX) {
+          player.vy = PHYS.WALL_SLIDE_MAX;
+          if (Math.random() < 0.35) {
+            spawnParticles(
+              player.onWall === 1 ? player.x + player.w : player.x,
+              player.y + player.h * 0.7,
+              1,
+              '#9CA3AF',
+              10,
+              45,
+              -Math.PI * 0.8,
+              -Math.PI * 0.2,
+              0.15,
+              0.28,
+              2.5
+            );
+          }
+        } else if (player.vy > PHYS.MAX_FALL_SPEED) {
+          player.vy = PHYS.MAX_FALL_SPEED;
+        }
+      }
+
+      // Move & Collide Axis-by-Axis
+      const prevX = player.x;
+      const prevY = player.y;
+
+      player.x += player.vx * dt;
+      player.y += player.vy * dt;
+
+      resolveWorldCollisions(prevX, prevY);
+
+      updatePlayerAnimation(dt, moveDir);
+
+      player.scaleX += (1 - player.scaleX) * Math.min(1, 14 * dt);
+      player.scaleY += (1 - player.scaleY) * Math.min(1, 14 * dt);
+
+      const activeSkin = getSkinById(gameState.equippedSkin);
+      if (Math.abs(player.vx) > 490 || player.diving || player.superJumpTimer > 0) {
+        if (Math.random() < 0.55) {
+          player.afterimages.push({
+            x: player.x,
+            y: player.y,
+            w: player.w,
+            h: player.h,
+            facing: player.anim.visualFacing,
+            vx: player.vx,
+            vy: player.vy,
+            grounded: player.grounded,
+            sliding: player.sliding,
+            diving: player.diving,
+            wallSliding: player.onWall !== 0 && !player.grounded,
+            wallNormal: player.onWall,
+            runCycle: player.runCycle,
+            alpha: 0.26,
+            tint: activeSkin.trailColor || (player.diving ? COLORS.hazard : COLORS.cyan)
+          });
+        }
+      }
+      for (let i = player.afterimages.length - 1; i >= 0; i--) {
+        player.afterimages[i].alpha -= dt * 1.6;
+        if (player.afterimages[i].alpha <= 0) {
+          player.afterimages.splice(i, 1);
+        }
+      }
+
+      // Steady Camera Tracking
+      const targetLookAheadX = player.vx * 0.13;
+      camera.lookAheadX += (targetLookAheadX - camera.lookAheadX) * (1 - Math.exp(-5.5 * dt));
+
+      const targetCamX = player.x + player.w * 0.5 + camera.lookAheadX;
+      const targetCamY = player.y + player.h * 0.5 - 32;
+
+      const smoothX = 1 - Math.exp(-9.5 * dt);
+      const smoothY = 1 - Math.exp(-8.0 * dt);
+      camera.x += (targetCamX - camera.x) * smoothX;
+      camera.y += (targetCamY - camera.y) * smoothY;
+
+      updateParticlesAndText(dt);
+
+      input.jumpPressedThisFrame = false;
+      input.jumpReleasedThisFrame = false;
+      input.downPressedThisFrame = false;
+    }
+
+    function updatePlayerAnimation(dt, moveDir) {
+      const a = player.anim;
+      const smooth = 1 - Math.exp(-16 * dt);
+      const speedAbs = Math.abs(player.vx);
+
+      const targetRun = player.grounded && !player.sliding && speedAbs > 25 ? Math.min(1, speedAbs / 240) : 0;
+      const targetSprint = player.grounded && !player.sliding && speedAbs > 260 ? Math.min(1, (speedAbs - 260) / 170) : 0;
+      const targetAir = !player.grounded && player.onWall === 0 && !player.diving ? 1 : 0;
+      const targetWall = !player.grounded && player.onWall !== 0 ? 1 : 0;
+      const targetSlide = player.sliding ? 1 : 0;
+      const targetDive = player.diving ? 1 : 0;
+
+      a.runBlend += (targetRun - a.runBlend) * smooth;
+      a.sprintBlend += (targetSprint - a.sprintBlend) * smooth;
+      a.airBlend += (targetAir - a.airBlend) * smooth;
+      a.wallBlend += (targetWall - a.wallBlend) * smooth;
+      a.slideBlend += (targetSlide - a.slideBlend) * smooth;
+      a.diveBlend += (targetDive - a.diveBlend) * smooth;
+
+      const desiredTilt = moveDir !== 0 ? (player.vx / PHYS.RUN_SPEED) * 0.16 : (player.vx / PHYS.RUN_SPEED) * 0.08;
+      a.turnTilt += (desiredTilt - a.turnTilt) * (1 - Math.exp(-14 * dt));
+      a.visualFacing += (player.facing - a.visualFacing) * (1 - Math.exp(-22 * dt));
+
+      if (player.grounded && !player.sliding && speedAbs > 25) {
+        player.runCycle += (speedAbs * 0.034 + 2.0) * dt;
+        a.hipBob = -Math.abs(Math.sin(player.runCycle)) * (2.2 + a.sprintBlend * 1.4) * a.runBlend;
+      } else {
+        a.hipBob += (0 - a.hipBob) * smooth;
+      }
+    }
+
+    function resolveWorldCollisions(prevX, prevY) {
+      const wasGrounded = player.grounded;
+      const wasDiving = player.diving;
+
+      player.grounded = false;
+      player.onWall = 0;
+
+      const solids = [];
+      for (const p of world.platforms) solids.push({ x: p.x, y: p.y, w: p.w, h: p.h, type: 'solid' });
+      for (const mp of world.movingPlatforms) solids.push({ x: mp.x, y: mp.y, w: mp.w, h: mp.h, type: 'moving' });
+      for (const cb of world.crumbleBlocks) {
+        if (cb.state !== 'broken') solids.push({ x: cb.x, y: cb.y, w: cb.w, h: cb.h, type: 'crumble', ref: cb });
+      }
+
+      // 1. Horizontal Sweep
+      for (const s of solids) {
+        if (aabbOverlap(player.x, prevY + 2, player.w, player.h - 4, s.x, s.y, s.w, s.h)) {
+          if (player.vx > 0) {
+            player.x = s.x - player.w;
+            player.vx = 0;
+            player.onWall = 1;
+          } else if (player.vx < 0) {
+            player.x = s.x + s.w;
+            player.vx = 0;
+            player.onWall = -1;
+          }
+        }
+      }
+
+      // 2. Vertical Sweep
+      for (const s of solids) {
+        if (aabbOverlap(player.x + 1, player.y, player.w - 2, player.h, s.x, s.y, s.w, s.h)) {
+          if (player.vy >= 0 && prevY + player.h <= s.y + 14) {
+            player.y = s.y - player.h;
+            player.vy = 0;
+            player.grounded = true;
+
+            if (s.type === 'crumble' && s.ref.state === 'solid') {
+              s.ref.state = 'shaking';
+              s.ref.timer = 0;
+            }
+
+            if (!wasGrounded) {
+              if (wasDiving) {
+                player.diving = false;
+                player.superJumpTimer = PHYS.SUPER_JUMP_WINDOW;
+                player.scaleX = 1.34;
+                player.scaleY = 0.66;
+                sfx.play('slam');
+                spawnParticles(player.x + player.w * 0.5, player.y + player.h, 14, COLORS.cyan, 70, 250, Math.PI, Math.PI * 2, 0.2, 0.4, 4.5);
+              } else {
+                player.scaleX = 1.16;
+                player.scaleY = 0.84;
+              }
+            }
+          } else if (player.vy < 0 && prevY >= s.y + s.h - 14) {
+            player.y = s.y + s.h;
+            player.vy = 0;
+          }
+        }
+      }
+
+      // Wall Proximity Sensor
+      if (!player.grounded && player.onWall === 0) {
+        const reach = 6;
+        for (const s of solids) {
+          if (player.y + player.h > s.y + 4 && player.y < s.y + s.h - 4) {
+            if (Math.abs((player.x + player.w) - s.x) <= reach) {
+              player.onWall = 1;
+              break;
+            }
+            if (Math.abs(player.x - (s.x + s.w)) <= reach) {
+              player.onWall = -1;
+              break;
+            }
+          }
+        }
+      }
+
+      // 3. Bounce Pads
+      for (const bp of world.bouncePads) {
+        if (aabbOverlap(player.x, player.y, player.w, player.h, bp.x, bp.y, bp.w, bp.h)) {
+          player.y = bp.y - player.h;
+          player.vy = bp.power;
+          player.grounded = false;
+          player.diving = false;
+          bp.compression = 1;
+          player.scaleX = 0.68;
+          player.scaleY = 1.38;
+          sfx.play('bounce');
+          spawnParticles(bp.x + bp.w * 0.5, bp.y, 12, COLORS.cyan, 80, 260, Math.PI, Math.PI * 2, 0.2, 0.45, 4);
+        }
+      }
+
+      // 4. Speed Boost Pads
+      for (const bst of world.boostPads) {
+        if (aabbOverlap(player.x, player.y, player.w, player.h, bst.x, bst.y - 6, bst.w, bst.h + 8)) {
+          player.vx = bst.dir * Math.max(Math.abs(player.vx), bst.power);
+          player.facing = bst.dir;
+          if (Math.random() < 0.4) {
+            spawnParticles(player.x + player.w * 0.5, player.y + player.h, 2, COLORS.cyan, 40, 140);
+          }
+        }
+      }
+
+      // 5. Checkpoints
+      for (let i = 0; i < world.checkpoints.length; i++) {
+        const cp = world.checkpoints[i];
+        if (!cp.activated && aabbOverlap(player.x, player.y, player.w, player.h, cp.x - 18, cp.y - 76, 36, 76)) {
+          cp.activated = true;
+          const cpIdx = i + 1;
+          if (cpIdx > gameState.currentCheckpointIndex) {
+            gameState.currentCheckpointIndex = cpIdx;
+          }
+          sfx.play('checkpoint');
+          spawnParticles(cp.x, cp.y - 45, 16, COLORS.cyan, 70, 240, 0, Math.PI * 2, 0.25, 0.55, 4);
+          spawnFloatingText(cp.x, cp.y - 70, `CHECKPOINT // ${cp.title.toUpperCase()}`, '#0077A8');
+          updateHUD();
+        }
+      }
+
+      // 6. Spikes
+      for (const sp of world.spikes) {
+        if (aabbOverlap(player.x + 3, player.y + 3, player.w - 6, player.h - 4, sp.x + 4, sp.y + 5, sp.w - 8, sp.h - 6)) {
+          killPlayer();
+          return;
+        }
+      }
+
+      // 7. Active Lasers
+      for (const lz of world.lasers) {
+        if (lz.active && aabbOverlap(player.x + 2, player.y + 2, player.w - 4, player.h - 4, lz.x + 2, lz.y + 2, lz.w - 4, lz.h - 4)) {
+          killPlayer();
+          return;
+        }
+      }
+
+      // 8. Abyss Fall Check
+      if (player.y > 920) {
+        killPlayer();
+        return;
+      }
+
+      // 9. Finish Portal
+      const fp = world.finishPortal;
+      if (fp && aabbOverlap(player.x, player.y, player.w, player.h, fp.x, fp.y, fp.w, fp.h)) {
+        triggerVictory();
+      }
+    }
+
+    function updateParticlesAndText(dt) {
+      for (let i = world.particles.length - 1; i >= 0; i--) {
+        const pt = world.particles[i];
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        pt.vy += 420 * dt;
+        pt.life -= dt;
+        if (pt.life <= 0) world.particles.splice(i, 1);
+      }
+
+      for (let i = world.floatingTexts.length - 1; i >= 0; i--) {
+        const ft = world.floatingTexts[i];
+        ft.y += ft.vy * dt;
+        ft.life -= dt;
+        if (ft.life <= 0) world.floatingTexts.splice(i, 1);
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 13. HIGH-CRAFT CANVAS RENDERING ENGINE
+    // --------------------------------------------------------------------------
+    function resizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    function render() {
+      const viewW = canvas.clientWidth || window.innerWidth;
+      const viewH = canvas.clientHeight || window.innerHeight;
+
+      ctx.fillStyle = COLORS.bg;
+      ctx.fillRect(0, 0, viewW, viewH);
+
+      renderParallaxBackground(viewW, viewH);
+      renderBlueprintGrid(viewW, viewH);
+
+      ctx.save();
+      ctx.translate(viewW * 0.5, viewH * 0.54);
+      ctx.translate(-camera.x, -camera.y);
+
+      const cullMargin = viewW * 0.85;
+      const minX = camera.x - cullMargin;
+      const maxX = camera.x + cullMargin;
+
+      renderSigns(minX, maxX);
+      renderStartMarker(minX, maxX);
+      renderCheckpoints(minX, maxX);
+      renderFinishPortal(minX, maxX);
+      renderPlatforms(minX, maxX);
+      renderCrumbleBlocks(minX, maxX);
+      renderMovingPlatforms(minX, maxX);
+      renderBounceAndBoostPads(minX, maxX);
+      renderSpikes(minX, maxX);
+      renderLasers(minX, maxX);
+      renderCoins(minX, maxX);
+      renderStars(minX, maxX);
+      renderParticles();
+      renderPlayer();
+      renderFloatingTexts();
+
+      ctx.restore();
+    }
+
+    function renderParallaxBackground(viewW, viewH) {
+      ctx.save();
+      ctx.fillStyle = COLORS.parallaxMonolith;
+      const parallaxFactor = 0.14;
+      const span = 640;
+      const startIdx = Math.floor((camera.x * parallaxFactor - viewW) / span);
+      const endIdx = Math.ceil((camera.x * parallaxFactor + viewW * 2) / span);
+
+      for (let i = startIdx; i <= endIdx; i++) {
+        const bx = i * span - camera.x * parallaxFactor;
+        const seed = Math.abs(i * 97 + 13);
+        const bw = 120 + (seed % 110);
+        const bh = 110 + ((seed * 31) % 130);
+        const by = viewH - bh;
+        ctx.fillRect(bx, by, bw, bh);
+      }
+      ctx.restore();
+    }
+
+    function renderBlueprintGrid(viewW, viewH) {
+      ctx.save();
+      const gridSize = 48;
+      const offsetX = ((-camera.x * 0.65) % gridSize + gridSize) % gridSize;
+      const offsetY = ((-camera.y * 0.65) % gridSize + gridSize) % gridSize;
+
+      ctx.strokeStyle = COLORS.gridMinor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = offsetX; x < viewW; x += gridSize) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, viewH);
+      }
+      for (let y = offsetY; y < viewH; y += gridSize) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(viewW, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function renderSigns(minX, maxX) {
+      ctx.save();
+      ctx.textAlign = 'left';
+      for (const s of world.signs) {
+        if (s.x + 680 < minX || s.x - 100 > maxX) continue;
+        ctx.strokeStyle = 'rgba(17, 19, 24, 0.14)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y - s.size - 6);
+        ctx.lineTo(s.x + 48, s.y - s.size - 6);
+        ctx.stroke();
+
+        ctx.font = `800 ${s.size}px "Space Grotesk", sans-serif`;
+        ctx.fillStyle = COLORS.wallText;
+        ctx.fillText(s.title, s.x, s.y);
+        if (s.sub) {
+          ctx.font = '700 12px "JetBrains Mono", monospace';
+          ctx.fillStyle = COLORS.wallTextAccent;
+          ctx.fillText(s.sub, s.x, s.y + 20);
+        }
+      }
+      ctx.restore();
+    }
+
+    function renderStartMarker(minX, maxX) {
+      const sx = START_SPAWN.x;
+      const sy = START_SPAWN.y;
+      if (sx + 80 < minX || sx - 80 > maxX) return;
+
+      ctx.save();
+      ctx.strokeStyle = COLORS.cyan;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx, sy - 64);
+      ctx.stroke();
+
+      ctx.fillStyle = '#111318';
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - 64);
+      ctx.lineTo(sx + 34, sy - 54);
+      ctx.lineTo(sx, sy - 44);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.font = '800 10px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#0077A8';
+      ctx.textAlign = 'center';
+      ctx.fillText('START', sx, sy - 72);
+      ctx.restore();
+    }
+
+    function renderPlatforms(minX, maxX) {
+      ctx.save();
+      for (const p of world.platforms) {
+        if (p.x + p.w < minX || p.x > maxX) continue;
+        ctx.fillStyle = COLORS.blockFill;
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+
+        ctx.fillStyle = COLORS.blockHighlight;
+        ctx.fillRect(p.x, p.y, p.w, 3);
+
+        ctx.strokeStyle = COLORS.blockEdge;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p.x, p.y, p.w, p.h);
+      }
+      ctx.restore();
+    }
+
+    function renderCrumbleBlocks(minX, maxX) {
+      ctx.save();
+      for (const cb of world.crumbleBlocks) {
+        if (cb.x + cb.w < minX || cb.x > maxX) continue;
+        if (cb.state === 'broken') {
+          ctx.strokeStyle = 'rgba(75, 85, 99, 0.35)';
+          ctx.setLineDash([5, 5]);
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(cb.x, cb.y, cb.w, cb.h);
+          ctx.setLineDash([]);
+          continue;
+        }
+        const ox = cb.state === 'shaking' ? (Math.random() - 0.5) * 4 : 0;
+        const oy = cb.state === 'shaking' ? (Math.random() - 0.5) * 4 : 0;
+
+        ctx.fillStyle = cb.state === 'shaking' ? '#F59E0B' : COLORS.crumble;
+        ctx.fillRect(cb.x + ox, cb.y + oy, cb.w, cb.h);
+        ctx.strokeStyle = '#111318';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cb.x + ox, cb.y + oy, cb.w, cb.h);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(cb.x + cb.w * 0.3 + ox, cb.y + oy);
+        ctx.lineTo(cb.x + cb.w * 0.42 + ox, cb.y + cb.h * 0.6 + oy);
+        ctx.lineTo(cb.x + cb.w * 0.65 + ox, cb.y + cb.h + oy);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function renderMovingPlatforms(minX, maxX) {
+      ctx.save();
+      for (const mp of world.movingPlatforms) {
+        if (mp.x + mp.w < minX - 320 || mp.x > maxX + 320) continue;
+
+        ctx.strokeStyle = 'rgba(0, 184, 255, 0.25)';
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(mp.startX + mp.w * 0.5, mp.startY + mp.h * 0.5);
+        ctx.lineTo(mp.startX + mp.dx + mp.w * 0.5, mp.startY + mp.dy + mp.h * 0.5);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#1C2029';
+        ctx.fillRect(mp.x, mp.y, mp.w, mp.h);
+        ctx.fillStyle = COLORS.cyan;
+        ctx.fillRect(mp.x + 4, mp.y + 3, mp.w - 8, 3);
+        ctx.strokeStyle = '#111318';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(mp.x, mp.y, mp.w, mp.h);
+      }
+      ctx.restore();
+    }
+
+    function renderBounceAndBoostPads(minX, maxX) {
+      ctx.save();
+      for (const bp of world.bouncePads) {
+        if (bp.x + bp.w < minX || bp.x > maxX) continue;
+        const squish = bp.compression * 6;
+        ctx.fillStyle = COLORS.cyan;
+        ctx.fillRect(bp.x, bp.y + squish, bp.w, bp.h - squish);
+        ctx.strokeStyle = '#111318';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bp.x, bp.y + squish, bp.w, bp.h - squish);
+      }
+
+      for (const bst of world.boostPads) {
+        if (bst.x + bst.w < minX || bst.x > maxX) continue;
+        ctx.fillStyle = '#0F172A';
+        ctx.fillRect(bst.x, bst.y, bst.w, bst.h);
+        ctx.strokeStyle = COLORS.cyan;
+        ctx.lineWidth = 1.8;
+        const shift = (gameState.worldTime * 60 * bst.dir) % 20;
+        ctx.beginPath();
+        for (let cx = bst.x + 12 + shift; cx < bst.x + bst.w - 10; cx += 20) {
+          ctx.moveTo(cx - 5 * bst.dir, bst.y + 2);
+          ctx.lineTo(cx + 3 * bst.dir, bst.y + bst.h * 0.5);
+          ctx.lineTo(cx - 5 * bst.dir, bst.y + bst.h - 2);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function renderSpikes(minX, maxX) {
+      ctx.save();
+      ctx.fillStyle = COLORS.hazard;
+      ctx.strokeStyle = '#111318';
+      ctx.lineWidth = 1.5;
+
+      for (const sp of world.spikes) {
+        if (sp.x + sp.w < minX || sp.x > maxX) continue;
+        ctx.beginPath();
+        if (sp.dir === 'up') {
+          ctx.moveTo(sp.x, sp.y + sp.h);
+          ctx.lineTo(sp.x + sp.w * 0.5, sp.y);
+          ctx.lineTo(sp.x + sp.w, sp.y + sp.h);
+        } else {
+          ctx.moveTo(sp.x, sp.y);
+          ctx.lineTo(sp.x + sp.w * 0.5, sp.y + sp.h);
+          ctx.lineTo(sp.x + sp.w, sp.y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function renderLasers(minX, maxX) {
+      ctx.save();
+      for (const lz of world.lasers) {
+        if (lz.x + lz.w < minX || lz.x > maxX) continue;
+
+        ctx.fillStyle = '#111318';
+        if (lz.h > lz.w) {
+          ctx.fillRect(lz.x - 3, lz.y - 4, lz.w + 6, 8);
+          ctx.fillRect(lz.x - 3, lz.y + lz.h - 4, lz.w + 6, 8);
+        } else {
+          ctx.fillRect(lz.x - 4, lz.y - 3, 8, lz.h + 6);
+          ctx.fillRect(lz.x + lz.w - 4, lz.y - 3, 8, lz.h + 6);
+        }
+
+        if (lz.active) {
+          ctx.fillStyle = COLORS.hazardGlow;
+          ctx.fillRect(lz.x - 4, lz.y - 4, lz.w + 8, lz.h + 8);
+          ctx.fillStyle = COLORS.hazard;
+          ctx.fillRect(lz.x, lz.y, lz.w, lz.h);
+          ctx.fillStyle = '#FFFFFF';
+          if (lz.h > lz.w) {
+            ctx.fillRect(lz.x + lz.w * 0.35, lz.y, lz.w * 0.3, lz.h);
+          } else {
+            ctx.fillRect(lz.x, lz.y + lz.h * 0.35, lz.w, lz.h * 0.3);
+          }
+        } else if (lz.warning) {
+          ctx.strokeStyle = 'rgba(255, 35, 70, 0.65)';
+          ctx.setLineDash([4, 4]);
+          ctx.lineWidth = 2;
+          ctx.strokeRect(lz.x + 2, lz.y + 2, lz.w - 4, lz.h - 4);
+          ctx.setLineDash([]);
+        }
+      }
+      ctx.restore();
+    }
+
+    function renderCoins(minX, maxX) {
+      ctx.save();
+      for (const c of world.coins) {
+        if (c.collected) continue;
+        if (c.x + 24 < minX || c.x - 24 > maxX) continue;
+
+        const bobY = Math.sin(gameState.worldTime * 4.5 + c.bobPhase) * 3.5;
+        const spinScaleX = Math.max(0.28, Math.abs(Math.cos(gameState.worldTime * 3.4 + c.bobPhase)));
+
+        ctx.save();
+        ctx.translate(c.x, c.y + bobY);
+        ctx.scale(spinScaleX, 1);
+
+        ctx.fillStyle = COLORS.gold;
+        ctx.strokeStyle = COLORS.goldDark;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, c.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = COLORS.goldLight;
+        ctx.beginPath();
+        ctx.arc(-2, -2, c.r * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    function renderStars(minX, maxX) {
+      ctx.save();
+      for (const st of world.stars) {
+        if (st.collected) continue;
+        if (st.x + 40 < minX || st.x - 40 > maxX) continue;
+
+        const bobY = Math.sin(gameState.worldTime * 3.5 + st.bobPhase) * 4.5;
+        const pulseR = st.r + 6 + Math.sin(gameState.worldTime * 5 + st.bobPhase) * 2.5;
+
+        ctx.save();
+        ctx.translate(st.x, st.y + bobY);
+
+        // Outer luminous aura
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.18)';
+        ctx.beginPath();
+        ctx.arc(0, 0, pulseR, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(0, 184, 255, 0.55)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, pulseR - 2, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 5-Point Star Geometry
+        const rot = Math.sin(gameState.worldTime * 2.2 + st.bobPhase) * 0.18;
+        ctx.rotate(rot);
+        ctx.fillStyle = '#FBBF24';
+        ctx.strokeStyle = '#111318';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const rad = i % 2 === 0 ? st.r : st.r * 0.46;
+          const ang = -Math.PI / 2 + (i * Math.PI) / 5;
+          const px = Math.cos(ang) * rad;
+          const py = Math.sin(ang) * rad;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner highlight
+        ctx.fillStyle = '#FEF9C3';
+        ctx.beginPath();
+        ctx.arc(-2, -3, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    function renderCheckpoints(minX, maxX) {
+      ctx.save();
+      for (const cp of world.checkpoints) {
+        if (cp.x + 60 < minX || cp.x - 60 > maxX) continue;
+        const isCurrent = gameState.currentCheckpointIndex === cp.num;
+        const color = isCurrent ? COLORS.cyan : cp.activated ? COLORS.emerald : '#9CA3AF';
+
+        ctx.strokeStyle = '#111318';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cp.x, cp.y);
+        ctx.lineTo(cp.x, cp.y - 68);
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(cp.x, cp.y - 68);
+        ctx.lineTo(cp.x + 30, cp.y - 57);
+        ctx.lineTo(cp.x, cp.y - 46);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = '800 10px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#111318';
+        ctx.textAlign = 'center';
+        ctx.fillText(`CP ${String(cp.num).padStart(2, '0')}`, cp.x, cp.y - 75);
+      }
+      ctx.restore();
+    }
+
+    function renderFinishPortal(minX, maxX) {
+      const fp = world.finishPortal;
+      if (!fp || fp.x + fp.w < minX - 100 || fp.x > maxX + 100) return;
+
+      ctx.save();
+      const cx = fp.x + fp.w * 0.5;
+      const cy = fp.y + fp.h * 0.5;
+      const pulse = 1 + Math.sin(gameState.worldTime * 5) * 0.06;
+
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.16)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, fp.w * 0.72 * pulse, fp.h * 0.58 * pulse, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = COLORS.emerald;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, fp.w * 0.45, fp.h * 0.48, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.font = '800 13px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#059669';
+      ctx.textAlign = 'center';
+      ctx.fillText(`FINISH // LVL ${String(gameState.currentLevel).padStart(2, '0')}`, cx, fp.y - 16);
+      ctx.restore();
+    }
+
+    function renderParticles() {
+      ctx.save();
+      for (const pt of world.particles) {
+        const alpha = Math.max(0, pt.life / pt.maxLife);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = pt.color;
+        ctx.fillRect(pt.x - pt.size * 0.5, pt.y - pt.size * 0.5, pt.size, pt.size);
+      }
+      ctx.restore();
+    }
+
+    function renderFloatingTexts() {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = '800 12px "JetBrains Mono", monospace';
+      for (const ft of world.floatingTexts) {
+        ctx.globalAlpha = Math.max(0, ft.life / ft.maxLife);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, ft.x, ft.y);
+      }
+      ctx.restore();
+    }
+
+    // --------------------------------------------------------------------------
+    // 14. BIOMECHANICAL STICKMAN RENDERER (NO SCARF)
+    // --------------------------------------------------------------------------
+    function renderPlayer() {
+      const activeSkin = getSkinById(gameState.equippedSkin);
+
+      for (const img of player.afterimages) {
+        ctx.save();
+        ctx.globalAlpha = img.alpha;
+        drawStickman(ctx, {
+          x: img.x + img.w * 0.5,
+          y: img.y + img.h,
+          facing: img.facing,
+          vx: img.vx,
+          vy: img.vy,
+          grounded: img.grounded,
+          sliding: img.sliding,
+          diving: img.diving,
+          wallSliding: img.wallSliding,
+          wallNormal: img.wallNormal,
+          runCycle: img.runCycle,
+          scaleX: 1,
+          scaleY: 1,
+          overrideColor: img.tint,
+          skin: activeSkin,
+          timeSec: gameState.worldTime
+        });
+        ctx.restore();
+      }
+
+      if (player.grounded) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(17, 19, 24, 0.14)';
+        const shadowW = player.sliding ? 26 : 16;
+        ctx.beginPath();
+        ctx.ellipse(player.x + player.w * 0.5, player.y + player.h, shadowW, 3.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      drawStickman(ctx, {
+        x: player.x + player.w * 0.5,
+        y: player.y + player.h,
+        facing: player.facing,
+        vx: player.vx,
+        vy: player.vy,
+        grounded: player.grounded,
+        sliding: player.sliding,
+        diving: player.diving,
+        wallSliding: player.onWall !== 0 && !player.grounded,
+        wallNormal: player.onWall,
+        runCycle: player.runCycle,
+        scaleX: player.scaleX,
+        scaleY: player.scaleY,
+        superReady: player.superJumpTimer > 0,
+        skin: activeSkin,
+        timeSec: gameState.worldTime,
+        anim: player.anim
+      });
+    }
+
+    function drawStickman(targetCtx, opts) {
+      const {
+        x, y, facing, vx, vy, grounded, sliding, diving,
+        wallSliding, wallNormal, runCycle, scaleX = 1, scaleY = 1,
+        overrideColor = null, superReady = false,
+        skin = SKINS_CATALOG[0], timeSec = 0, anim = null
+      } = opts;
+
+      targetCtx.save();
+      targetCtx.translate(x, y);
+      targetCtx.scale(scaleX, scaleY);
+
+      const hue = (timeSec * 150) % 360;
+      const primaryColor = overrideColor
+        ? overrideColor
+        : skin.prismatic
+        ? `hsl(${hue}, 88%, 45%)`
+        : skin.bodyColor;
+
+      const accentColor = overrideColor
+        ? overrideColor
+        : skin.prismatic
+        ? `hsl(${(hue + 140) % 360}, 95%, 56%)`
+        : superReady
+        ? COLORS.cyan
+        : skin.jointColor;
+
+      if (!overrideColor) {
+        if (skin.pulseRings) {
+          const ringR = 16 + ((timeSec * 28) % 16);
+          const ringAlpha = Math.max(0, 0.42 - ((ringR - 16) / 16) * 0.42);
+          targetCtx.strokeStyle = `hsla(${hue}, 90%, 52%, ${ringAlpha})`;
+          targetCtx.lineWidth = 2;
+          targetCtx.beginPath();
+          targetCtx.arc(0, -24, ringR, 0, Math.PI * 2);
+          targetCtx.stroke();
+        }
+
+        if (skin.glowColor || superReady) {
+          targetCtx.fillStyle = superReady ? COLORS.cyanGlow : skin.glowColor;
+          targetCtx.beginPath();
+          targetCtx.arc(0, -24, 21, 0, Math.PI * 2);
+          targetCtx.fill();
+        }
+
+        if (skin.orbitShards) {
+          for (let i = 0; i < 3; i++) {
+            const ang = timeSec * 4.2 + (i * Math.PI * 2) / 3;
+            const ox = Math.cos(ang) * 19;
+            const oy = -25 + Math.sin(ang) * 11;
+            targetCtx.fillStyle = skin.orbitShards;
+            targetCtx.beginPath();
+            targetCtx.moveTo(ox, oy - 4);
+            targetCtx.lineTo(ox + 3.5, oy);
+            targetCtx.lineTo(ox, oy + 4);
+            targetCtx.lineTo(ox - 3.5, oy);
+            targetCtx.closePath();
+            targetCtx.fill();
+          }
+        }
+      }
+
+      const dir = anim ? anim.visualFacing : facing;
+      const signDir = dir >= 0 ? 1 : -1;
+      targetCtx.strokeStyle = primaryColor;
+      targetCtx.fillStyle = primaryColor;
+      targetCtx.lineCap = 'round';
+      targetCtx.lineJoin = 'round';
+
+      if (sliding) {
+        targetCtx.lineWidth = 3.8;
+        targetCtx.beginPath();
+        targetCtx.arc(-dir * 8, -14, 5.2, 0, Math.PI * 2);
+        targetCtx.fill();
+
+        if (skin.visorEye) {
+          targetCtx.fillStyle = skin.visorEye;
+          targetCtx.fillRect(-dir * 8 + (signDir > 0 ? 1 : -5), -15.5, 4, 2.4);
+          targetCtx.fillStyle = primaryColor;
+        }
+
+        targetCtx.beginPath();
+        targetCtx.moveTo(-dir * 5, -9.5);
+        targetCtx.quadraticCurveTo(0, -7.8, dir * 5, -5);
+        targetCtx.stroke();
+
+        targetCtx.lineWidth = 3.3;
+        targetCtx.beginPath();
+        targetCtx.moveTo(dir * 5, -5);
+        targetCtx.lineTo(dir * 18, -3);
+        targetCtx.lineTo(dir * 20, -6.5);
+        targetCtx.moveTo(dir * 5, -5);
+        targetCtx.lineTo(-dir * 4, -2);
+        targetCtx.lineTo(-dir * 12, -4);
+        targetCtx.stroke();
+
+        targetCtx.lineWidth = 2.8;
+        targetCtx.beginPath();
+        targetCtx.moveTo(-dir * 2, -8);
+        targetCtx.lineTo(-dir * 13, -13);
+        targetCtx.stroke();
+
+        targetCtx.restore();
+        return;
+      }
+
+      if (diving) {
+        targetCtx.lineWidth = 3.8;
+        targetCtx.beginPath();
+        targetCtx.arc(0, -10, 5.4, 0, Math.PI * 2);
+        targetCtx.fill();
+
+        targetCtx.beginPath();
+        targetCtx.moveTo(0, -15);
+        targetCtx.lineTo(0, -32);
+        targetCtx.stroke();
+
+        targetCtx.lineWidth = 3.2;
+        targetCtx.beginPath();
+        targetCtx.moveTo(0, -32);
+        targetCtx.lineTo(-5, -44);
+        targetCtx.moveTo(0, -32);
+        targetCtx.lineTo(5, -44);
+        targetCtx.moveTo(0, -20);
+        targetCtx.lineTo(-8, -30);
+        targetCtx.moveTo(0, -20);
+        targetCtx.lineTo(8, -30);
+        targetCtx.stroke();
+
+        targetCtx.restore();
+        return;
+      }
+
+      const runBlend = anim ? anim.runBlend : (grounded && Math.abs(vx) > 35 ? 1 : 0);
+      const sprintBlend = anim ? anim.sprintBlend : (grounded && Math.abs(vx) > 320 ? 1 : 0);
+      const hipBob = anim ? anim.hipBob : 0;
+
+      const lean = wallSliding
+        ? -wallNormal * 0.14
+        : anim
+        ? anim.turnTilt
+        : (vx / PHYS.RUN_SPEED) * 0.16;
+
+      targetCtx.rotate(lean);
+
+      const hipY = -19 + hipBob;
+      const shoulderY = -34 + hipBob * 0.85;
+      const headY = -41 + hipBob * 0.75;
+      const headOffsetX = wallSliding ? -wallNormal * 1.4 : dir * (1.2 + sprintBlend * 1.3);
+
+      if (skin.plasmaWings) {
+        const flap = Math.sin(timeSec * 12) * 3;
+        targetCtx.save();
+        targetCtx.fillStyle = 'rgba(251, 191, 36, 0.72)';
+        targetCtx.beginPath();
+        targetCtx.moveTo(-dir * 2, shoulderY + 3);
+        targetCtx.lineTo(-dir * 20, shoulderY - 12 + flap);
+        targetCtx.lineTo(-dir * 14, shoulderY + 4);
+        targetCtx.lineTo(-dir * 23, shoulderY + 7 + flap);
+        targetCtx.lineTo(-dir * 4, hipY - 2);
+        targetCtx.closePath();
+        targetCtx.fill();
+        targetCtx.restore();
+      }
+
+      targetCtx.beginPath();
+      targetCtx.arc(headOffsetX, headY, 5.4, 0, Math.PI * 2);
+      targetCtx.fill();
+
+      if (skin.visorEye) {
+        targetCtx.fillStyle = skin.visorEye;
+        targetCtx.fillRect(headOffsetX + (signDir > 0 ? 1.0 : -5.0), headY - 1.5, 4.2, 2.4);
+        targetCtx.fillStyle = primaryColor;
+      }
+
+      if (skin.halo) {
+        const hover = Math.sin(timeSec * 6) * 1.5;
+        targetCtx.save();
+        targetCtx.strokeStyle = skin.halo;
+        targetCtx.lineWidth = 2.2;
+        targetCtx.beginPath();
+        targetCtx.ellipse(headOffsetX, headY - 9 + hover, 6.5, 2.2, 0, 0, Math.PI * 2);
+        targetCtx.stroke();
+        targetCtx.restore();
+      }
+
+      if (skin.crown) {
+        const hover = Math.sin(timeSec * 6) * 1.8;
+        targetCtx.save();
+        targetCtx.fillStyle = `hsl(${(hue + 50) % 360}, 95%, 56%)`;
+        targetCtx.beginPath();
+        const cx = headOffsetX;
+        const cy = headY - 8 + hover;
+        targetCtx.moveTo(cx - 5, cy);
+        targetCtx.lineTo(cx - 6, cy - 6);
+        targetCtx.lineTo(cx - 2, cy - 3);
+        targetCtx.lineTo(cx, cy - 8);
+        targetCtx.lineTo(cx + 2, cy - 3);
+        targetCtx.lineTo(cx + 6, cy - 6);
+        targetCtx.lineTo(cx + 5, cy);
+        targetCtx.closePath();
+        targetCtx.fill();
+        targetCtx.restore();
+      }
+
+      const spineArchX = wallSliding ? -wallNormal * 1.6 : dir * (1.0 + sprintBlend * 1.5);
+      targetCtx.lineWidth = 3.8;
+      targetCtx.beginPath();
+      targetCtx.moveTo(dir * sprintBlend * 1.1, shoulderY);
+      targetCtx.quadraticCurveTo(spineArchX, (shoulderY + hipY) * 0.5, 0, hipY);
+      targetCtx.stroke();
+
+      let thigh1 = 0, knee1 = 0, thigh2 = 0, knee2 = 0;
+      let arm1 = 0, elbow1 = 0, arm2 = 0, elbow2 = 0;
+
+      if (wallSliding) {
+        const wn = wallNormal;
+        thigh1 = -wn * 0.58;
+        knee1 = wn * 1.1;
+        thigh2 = -wn * 0.16;
+        knee2 = wn * 0.42;
+        arm1 = -wn * 2.3;
+        elbow1 = wn * 0.52;
+        arm2 = wn * 0.45;
+        elbow2 = -wn * 0.32;
+      } else if (!grounded) {
+        const vyNorm = Math.max(-1, Math.min(1, vy / 680));
+        const riseFactor = Math.max(0, -vyNorm);
+        const fallFactor = Math.max(0, vyNorm);
+
+        thigh1 = dir * (0.38 + riseFactor * 0.45 - fallFactor * 0.12);
+        knee1 = dir * (0.52 + riseFactor * 0.52 - fallFactor * 0.14);
+        thigh2 = -dir * (0.26 + riseFactor * 0.2);
+        knee2 = dir * (0.38 + riseFactor * 0.22);
+
+        arm1 = -dir * (0.8 + riseFactor * 0.6 - fallFactor * 0.22);
+        elbow1 = -dir * 0.45;
+        arm2 = dir * (0.6 + riseFactor * 0.42);
+        elbow2 = -dir * 0.5;
+      } else {
+        const breathe = Math.sin(timeSec * 3.4) * 0.035;
+        const idleThigh1 = 0.12 * dir;
+        const idleKnee1 = -0.12 * dir;
+        const idleThigh2 = -0.12 * dir;
+        const idleKnee2 = 0.12 * dir;
+        const idleArm1 = (0.15 + breathe) * dir;
+        const idleElbow1 = -0.12 * dir;
+        const idleArm2 = (-0.15 - breathe) * dir;
+        const idleElbow2 = -0.12 * dir;
+
+        const strideAmp = 0.74 + sprintBlend * 0.22;
+        const kneeLift = 0.88 + sprintBlend * 0.28;
+        const s1 = Math.sin(runCycle);
+        const c1 = Math.cos(runCycle);
+        const s2 = Math.sin(runCycle + Math.PI);
+        const c2 = Math.cos(runCycle + Math.PI);
+
+        const bend1 = (0.5 * (c1 + Math.sqrt(c1 * c1 + 0.08)) * 0.6 + 0.12) * kneeLift;
+        const bend2 = (0.5 * (c2 + Math.sqrt(c2 * c2 + 0.08)) * 0.6 + 0.12) * kneeLift;
+
+        const runThigh1 = s1 * strideAmp;
+        const runKnee1 = bend1 * dir;
+        const runThigh2 = s2 * strideAmp;
+        const runKnee2 = bend2 * dir;
+
+        const armAmp = 0.72 + sprintBlend * 0.25;
+        const runArm1 = -s1 * armAmp;
+        const runElbow1 = -dir * (0.68 + sprintBlend * 0.24);
+        const runArm2 = -s2 * armAmp;
+        const runElbow2 = -dir * (0.68 + sprintBlend * 0.24);
+
+        thigh1 = idleThigh1 + (runThigh1 - idleThigh1) * runBlend;
+        knee1 = idleKnee1 + (runKnee1 - idleKnee1) * runBlend;
+        thigh2 = idleThigh2 + (runThigh2 - idleThigh2) * runBlend;
+        knee2 = idleKnee2 + (runKnee2 - idleKnee2) * runBlend;
+
+        arm1 = idleArm1 + (runArm1 - idleArm1) * runBlend;
+        elbow1 = idleElbow1 + (runElbow1 - idleElbow1) * runBlend;
+        arm2 = idleArm2 + (runArm2 - idleArm2) * runBlend;
+        elbow2 = idleElbow2 + (runElbow2 - idleElbow2) * runBlend;
+      }
+
+      const shoulderX = dir * sprintBlend * 1.1;
+      drawLimb(targetCtx, shoulderX, shoulderY + 1, 9, 9, arm2, elbow2, 2.8, primaryColor, accentColor, false, dir);
+      drawLimb(targetCtx, 0, hipY, 10, 10, thigh2, knee2, 3.3, primaryColor, accentColor, true, dir);
+      drawLimb(targetCtx, 0, hipY, 10, 10, thigh1, knee1, 3.3, primaryColor, accentColor, true, dir);
+      drawLimb(targetCtx, shoulderX, shoulderY + 1, 9, 9, arm1, elbow1, 2.8, primaryColor, accentColor, false, dir);
+
+      targetCtx.restore();
+    }
+
+    function drawLimb(targetCtx, ox, oy, len1, len2, angle1, angle2Rel, width, primaryColor, accentColor, isLeg = false, dir = 1) {
+      const jx = ox + Math.sin(angle1) * len1;
+      const jy = oy + Math.cos(angle1) * len1;
+      const totalAngle = angle1 + angle2Rel;
+      const ex = jx + Math.sin(totalAngle) * len2;
+      const ey = jy + Math.cos(totalAngle) * len2;
+
+      targetCtx.strokeStyle = primaryColor;
+      targetCtx.lineWidth = width;
+      targetCtx.beginPath();
+      targetCtx.moveTo(ox, oy);
+      targetCtx.lineTo(jx, jy);
+      targetCtx.lineTo(ex, ey);
+
+      if (isLeg) {
+        const footAngle = totalAngle * 0.55 - dir * 1.42;
+        targetCtx.lineTo(ex + Math.sin(footAngle) * 3.5, ey + Math.cos(footAngle) * 3.5);
+      }
+      targetCtx.stroke();
+
+      targetCtx.fillStyle = accentColor;
+      targetCtx.beginPath();
+      targetCtx.arc(jx, jy, width * 0.36, 0, Math.PI * 2);
+      targetCtx.fill();
+    }
+
+    // --------------------------------------------------------------------------
+    // 15. UI, HUD, LEVEL 1-15 SELECT, ACHIEVEMENTS, SHOP & VICTORY FLOWS
+    // --------------------------------------------------------------------------
+    function formatTime(sec) {
+      const mins = Math.floor(sec / 60);
+      const rem = sec % 60;
+      const whole = Math.floor(rem);
+      const hundredths = Math.floor((rem - whole) * 100);
+      return `${String(mins).padStart(2, '0')}:${String(whole).padStart(2, '0')}.${String(hundredths).padStart(2, '0')}`;
+    }
+
+    function updateHUD() {
+      const meta = LEVELS_META[gameState.currentLevel - 1] || LEVELS_META[0];
+      document.getElementById('hudLevelBadgeDot').style.backgroundColor = meta.color;
+      document.getElementById('hudLevelTag').textContent = `LEVEL ${String(gameState.currentLevel).padStart(2, '0')} / 15`;
+      document.getElementById('hudLevelName').textContent = meta.name;
+
+      // Update live 3 stars in top HUD
+      document.querySelectorAll('[data-hud-star]').forEach(el => {
+        const idx = parseInt(el.getAttribute('data-hud-star'), 10);
+        if (gameState.levelStarsCollected[idx]) {
+          el.classList.remove('text-[#D1D5DB]');
+          el.classList.add('text-[#F59E0B]', 'scale-110');
+        } else {
+          el.classList.remove('text-[#F59E0B]', 'scale-110');
+          el.classList.add('text-[#D1D5DB]');
+        }
+      });
+
+      document.getElementById('hudDeaths').textContent = String(gameState.deaths);
+      document.getElementById('hudLevelCoins').textContent = String(gameState.levelCoinsCollected);
+      document.getElementById('hudCoins').textContent = String(gameState.coins);
+      document.getElementById('startCoinCount').textContent = String(gameState.coins);
+      document.getElementById('shopCoinBalance').textContent = String(gameState.coins);
+
+      const achRatio = `${gameState.unlockedAchievements.length}/${ACHIEVEMENTS_CATALOG.length}`;
+      document.getElementById('hudAchBadge').textContent = achRatio;
+      document.getElementById('startAchCount').textContent = achRatio;
+
+      // Update Main Menu summary stats
+      document.getElementById('menuLevelsCleared').textContent = `${getLevelsClearedCount()} / 15`;
+      document.getElementById('menuTotalStars').textContent = `${getTotalStarsCount()} / 45 ★`;
+      document.getElementById('menuTotalCoins').textContent = `${gameState.coins} $`;
+    }
+
+    function startLevel(levelId, autoPlay = true) {
+      gameState.currentLevel = Math.max(1, Math.min(15, levelId));
+      gameState.elapsedTime = 0;
+      gameState.deaths = 0;
+      gameState.currentCheckpointIndex = 0;
+      gameState.levelCoinsCollected = 0;
+      gameState.levelStarsCollected = [false, false, false];
+
+      buildLevel(gameState.currentLevel);
+
+      if (autoPlay) {
+        document.getElementById('startOverlay').classList.add('hidden');
+        document.getElementById('levelSelectModal').classList.add('hidden');
+        document.getElementById('victoryOverlay').classList.add('hidden');
+        document.getElementById('achievementsModal').classList.add('hidden');
+        document.getElementById('shopModal').classList.add('hidden');
+        gameState.mode = 'playing';
+      }
+      respawnPlayer();
+      camera.x = START_SPAWN.x + 120;
+      camera.y = START_SPAWN.y - 90;
+      updateHUD();
+    }
+
+    function openLevelSelect() {
+      gameState.mode = 'paused';
+      buildLevelSelectGrid();
+      document.getElementById('levelSelectModal').classList.remove('hidden');
+    }
+
+    function closeLevelSelect() {
+      document.getElementById('levelSelectModal').classList.add('hidden');
+      if (document.getElementById('startOverlay').classList.contains('hidden')) {
+        gameState.mode = 'playing';
+      }
+    }
+
+    function buildLevelSelectGrid() {
+      const grid = document.getElementById('levelGrid');
+      grid.innerHTML = '';
+
+      LEVELS_META.forEach(lvl => {
+        const rec = gameState.levelRecords[lvl.id] || {
+          completed: false,
+          bestTime: null,
+          bestCoins: 0,
+          stars: [false, false, false]
+        };
+        const isCurrent = gameState.currentLevel === lvl.id;
+        const starsHtml = [0, 1, 2]
+          .map(i => `<span class="${rec.stars?.[i] ? 'text-[#F59E0B]' : 'text-[#D1D5DB]'}">★</span>`)
+          .join('');
+
+        const card = document.createElement('button');
+        card.className = `p-3.5 rounded-xl border-2 text-left transition cursor-pointer flex flex-col justify-between ${
+          isCurrent
+            ? 'bg-[#111318] text-white border-[#111318]'
+            : 'bg-[#F9FAFB] hover:bg-white text-[#111318] border-[#E5E7EB] hover:border-[#111318]'
+        }`;
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-mono-tech text-[11px] font-extrabold px-2 py-0.5 rounded" style="background:${isCurrent ? '#00B8FF' : '#E5E7EB'};color:#111318">
+                LEVEL ${String(lvl.id).padStart(2, '0')}
+              </span>
+              <div class="text-sm tracking-wider">${starsHtml}</div>
+            </div>
+            <div class="text-sm sm:text-base font-extrabold mt-2">${lvl.name}</div>
+            <div class="text-[11px] font-semibold mt-0.5" style="color:${isCurrent ? '#93C5FD' : lvl.color}">
+              ${lvl.element}
+            </div>
+          </div>
+
+          <div class="mt-3 pt-2 border-t ${isCurrent ? 'border-white/15' : 'border-[#E5E7EB]'} flex items-center justify-between font-mono-tech text-[11px]">
+            <span class="${isCurrent ? 'text-[#FDE68A]' : 'text-[#B45309]'} font-bold">
+              COINS: ${rec.bestCoins || 0}/50
+            </span>
+            <span class="${isCurrent ? 'text-gray-300' : 'text-[#6B7280]'} font-bold">
+              ${rec.bestTime ? formatTime(rec.bestTime) : '--:--.--'}
+            </span>
+          </div>
+        `;
+
+        card.onclick = () => {
+          sfx.unlock();
+          startLevel(lvl.id, true);
+        };
+
+        grid.appendChild(card);
+      });
+    }
+
+    // Achievements Page Modal
+    let prevModeBeforeAch = 'start';
+
+    function openAchievementsModal() {
+      if (gameState.mode !== 'paused') {
+        prevModeBeforeAch = gameState.mode;
+        if (gameState.mode === 'playing') {
+          gameState.mode = 'paused';
+        }
+      }
+      renderAchievementsGrid();
+      document.getElementById('achievementsModal').classList.remove('hidden');
+    }
+
+    function closeAchievementsModal() {
+      document.getElementById('achievementsModal').classList.add('hidden');
+      if (prevModeBeforeAch === 'playing' && document.getElementById('startOverlay').classList.contains('hidden')) {
+        gameState.mode = 'playing';
+      } else {
+        gameState.mode = prevModeBeforeAch;
+      }
+    }
+
+    function renderAchievementsGrid() {
+      const grid = document.getElementById('achievementsGrid');
+      grid.innerHTML = '';
+
+      const total = ACHIEVEMENTS_CATALOG.length;
+      const unlockedCount = gameState.unlockedAchievements.length;
+      const pct = Math.round((unlockedCount / total) * 100);
+
+      document.getElementById('achProgressPill').textContent = `${unlockedCount} / ${total} (${pct}%)`;
+      document.getElementById('achProgressBar').style.width = `${pct}%`;
+
+      const filtered = ACHIEVEMENTS_CATALOG.filter(a => {
+        const isUnlocked = gameState.unlockedAchievements.includes(a.id);
+        if (gameState.achFilter === 'UNLOCKED') return isUnlocked;
+        if (gameState.achFilter === 'LOCKED') return !isUnlocked;
+        return true;
+      });
+
+      filtered.forEach(ach => {
+        const unlocked = gameState.unlockedAchievements.includes(ach.id);
+        const card = document.createElement('div');
+        card.className = `p-3.5 rounded-xl border-2 flex items-center gap-3 ${
+          unlocked
+            ? 'bg-white border-[#10B981]'
+            : 'bg-[#F9FAFB] border-[#E5E7EB] opacity-75'
+        }`;
+
+        card.innerHTML = `
+          <div class="w-11 h-11 rounded-xl ${
+            unlocked ? 'bg-[#FEF3C7] border border-[#F59E0B]' : 'bg-[#E5E7EB]'
+          } flex items-center justify-center text-xl shrink-0">
+            ${unlocked ? ach.icon : '🔒'}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2">
+              <div class="text-sm font-extrabold text-[#111318] truncate">${ach.title}</div>
+              <span class="font-mono-tech text-[10px] font-extrabold px-2 py-0.5 rounded ${
+                unlocked ? 'bg-[#DCFCE7] text-[#15803D]' : 'bg-[#F3F4F6] text-[#6B7280]'
+              }">
+                ${unlocked ? 'UNLOCKED ✓' : `+${ach.reward} $`}
+              </span>
+            </div>
+            <div class="text-xs text-[#6B7280] mt-0.5 leading-snug">${ach.desc}</div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // Shop Modal & Live Stickman Previews
+    let shopPreviewRaf = null;
+    let prevModeBeforeShop = 'playing';
+
+    function openShopModal() {
+      if (gameState.mode !== 'paused') {
+        prevModeBeforeShop = gameState.mode;
+        if (gameState.mode === 'playing') {
+          gameState.mode = 'paused';
+        }
+      }
+      document.getElementById('victoryOverlay').classList.add('hidden');
+      document.getElementById('startOverlay').classList.add('hidden');
+
+      document.getElementById('shopCoinBalance').textContent = String(gameState.coins);
+      renderShopGrid();
+      document.getElementById('shopModal').classList.remove('hidden');
+      startShopPreviewLoop();
+    }
+
+    function closeShopModal() {
+      document.getElementById('shopModal').classList.add('hidden');
+      if (shopPreviewRaf) {
+        cancelAnimationFrame(shopPreviewRaf);
+        shopPreviewRaf = null;
+      }
+      if (prevModeBeforeShop === 'victory') {
+        document.getElementById('victoryOverlay').classList.remove('hidden');
+        gameState.mode = 'victory';
+      } else if (prevModeBeforeShop === 'start') {
+        document.getElementById('startOverlay').classList.remove('hidden');
+        gameState.mode = 'start';
+      } else if (document.getElementById('levelSelectModal').classList.contains('hidden')) {
+        gameState.mode = 'playing';
+      }
+    }
+
+    function renderShopGrid() {
+      const grid = document.getElementById('shopGrid');
+      grid.innerHTML = '';
+
+      const filtered = gameState.shopFilter === 'ALL'
+        ? SKINS_CATALOG
+        : SKINS_CATALOG.filter(s => s.rarity === gameState.shopFilter);
+
+      filtered.forEach(skin => {
+        const rarity = RARITY_META[skin.rarity] || RARITY_META.COMMON;
+        const unlocked = gameState.unlockedSkins.includes(skin.id);
+        const equipped = gameState.equippedSkin === skin.id;
+        const canAfford = gameState.coins >= skin.price;
+
+        const card = document.createElement('div');
+        card.className = 'rounded-xl border-2 p-3.5 bg-[#F9FAFB] flex flex-col justify-between transition';
+        card.style.borderColor = equipped ? '#111318' : rarity.border;
+
+        let actionHtml = '';
+        if (equipped) {
+          actionHtml = `<button disabled class="w-full py-2 rounded-lg bg-[#111318] text-white font-mono-tech text-xs font-extrabold">EQUIPPED ✓</button>`;
+        } else if (unlocked) {
+          actionHtml = `<button data-equip="${skin.id}" class="w-full py-2 rounded-lg bg-[#00B8FF] hover:bg-[#009CE0] text-[#111318] font-mono-tech text-xs font-extrabold cursor-pointer transition">EQUIP SKIN</button>`;
+        } else {
+          actionHtml = `<button data-buy="${skin.id}" class="w-full py-2 rounded-lg ${
+            canAfford
+              ? 'bg-[#F59E0B] hover:bg-[#D97706] text-[#111318] cursor-pointer'
+              : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
+          } font-mono-tech text-xs font-extrabold transition">BUY • ${skin.price} COINS</button>`;
+        }
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-mono-tech text-[10px] font-extrabold px-2 py-0.5 rounded" style="background:${rarity.badgeBg};color:${rarity.badgeText}">
+                ${rarity.label}
+              </span>
+              <span class="font-mono-tech text-xs font-bold text-[#6B7280]">
+                ${skin.price === 0 ? 'FREE' : `${skin.price} $`}
+              </span>
+            </div>
+
+            <div class="my-2.5 flex justify-center bg-white rounded-lg border border-[#E5E7EB] py-1.5">
+              <canvas data-skin-preview="${skin.id}" width="110" height="78"></canvas>
+            </div>
+
+            <div class="text-sm font-extrabold text-[#111318]">${skin.name}</div>
+            <p class="text-[11px] text-[#6B7280] leading-snug mt-0.5">${skin.desc}</p>
+          </div>
+          <div class="mt-3">${actionHtml}</div>
+        `;
+
+        grid.appendChild(card);
+      });
+
+      grid.querySelectorAll('[data-equip]').forEach(btn => {
+        btn.onclick = () => {
+          sfx.unlock();
+          sfx.play('checkpoint');
+          gameState.equippedSkin = btn.getAttribute('data-equip');
+          savePersistentProgress();
+          renderShopGrid();
+        };
+      });
+
+      grid.querySelectorAll('[data-buy]').forEach(btn => {
+        btn.onclick = () => {
+          sfx.unlock();
+          const skinId = btn.getAttribute('data-buy');
+          const skin = getSkinById(skinId);
+          if (!gameState.unlockedSkins.includes(skin.id) && gameState.coins >= skin.price) {
+            gameState.coins -= skin.price;
+            gameState.unlockedSkins.push(skin.id);
+            gameState.equippedSkin = skin.id;
+            savePersistentProgress();
+            sfx.play('buy');
+            evaluateAchievements();
+            updateHUD();
+            renderShopGrid();
+          }
+        };
+      });
+    }
+
+    function startShopPreviewLoop() {
+      if (shopPreviewRaf) cancelAnimationFrame(shopPreviewRaf);
+      const tick = (now) => {
+        const t = now * 0.001;
+        document.querySelectorAll('canvas[data-skin-preview]').forEach(c => {
+          const skin = getSkinById(c.getAttribute('data-skin-preview'));
+          const pctx = c.getContext('2d');
+          pctx.clearRect(0, 0, c.width, c.height);
+
+          pctx.fillStyle = 'rgba(17, 19, 24, 0.12)';
+          pctx.beginPath();
+          pctx.ellipse(55, 66, 15, 3, 0, 0, Math.PI * 2);
+          pctx.fill();
+
+          drawStickman(pctx, {
+            x: 55,
+            y: 66,
+            facing: 1,
+            vx: 360,
+            vy: 0,
+            grounded: true,
+            sliding: false,
+            diving: false,
+            wallSliding: false,
+            wallNormal: 0,
+            runCycle: t * 11,
+            scaleX: 1,
+            scaleY: 1,
+            skin,
+            timeSec: t
+          });
+        });
+        if (!document.getElementById('shopModal').classList.contains('hidden')) {
+          shopPreviewRaf = requestAnimationFrame(tick);
+        }
+      };
+      shopPreviewRaf = requestAnimationFrame(tick);
+    }
+
+    function triggerVictory() {
+      if (gameState.mode === 'victory') return;
+      gameState.mode = 'victory';
+      sfx.play('victory');
+
+      const lvlId = gameState.currentLevel;
+      const meta = LEVELS_META[lvlId - 1] || LEVELS_META[0];
+      const t = gameState.elapsedTime;
+      const d = gameState.deaths;
+
+      // Calculate Level Rank
+      let rank = 'C';
+      if (t <= meta.targetTime && d === 0) rank = 'S+';
+      else if (t <= meta.targetTime * 1.25 && d <= 2) rank = 'S';
+      else if (t <= meta.targetTime * 1.6 && d <= 5) rank = 'A';
+      else if (t <= meta.targetTime * 2.1) rank = 'B';
+
+      // Save Level Record
+      const prevRec = gameState.levelRecords[lvlId] || {
+        completed: false,
+        bestTime: null,
+        bestCoins: 0,
+        stars: [false, false, false]
+      };
+
+      const isNewRecord = !prevRec.bestTime || t < prevRec.bestTime;
+      const mergedStars = [
+        Boolean(prevRec.stars?.[0] || gameState.levelStarsCollected[0]),
+        Boolean(prevRec.stars?.[1] || gameState.levelStarsCollected[1]),
+        Boolean(prevRec.stars?.[2] || gameState.levelStarsCollected[2])
+      ];
+
+      gameState.levelRecords[lvlId] = {
+        completed: true,
+        bestTime: isNewRecord ? t : prevRec.bestTime,
+        bestCoins: Math.max(prevRec.bestCoins || 0, gameState.levelCoinsCollected),
+        stars: mergedStars
+      };
+      savePersistentProgress();
+
+      // Update Victory UI
+      document.getElementById('victoryLevelBadge').textContent = `LEVEL ${String(lvlId).padStart(2, '0')} / 15 COMPLETE`;
+      document.getElementById('victoryLevelTitle').textContent = meta.name;
+
+      // Render the 3 Stars on Victory Screen
+      const runStarsCount = gameState.levelStarsCollected.filter(Boolean).length;
+      document.querySelectorAll('[data-v-star]').forEach(el => {
+        const idx = parseInt(el.getAttribute('data-v-star'), 10);
+        if (gameState.levelStarsCollected[idx]) {
+          el.classList.remove('text-[#D1D5DB]');
+          el.classList.add('text-[#F59E0B]', 'drop-shadow');
+        } else {
+          el.classList.remove('text-[#F59E0B]', 'drop-shadow');
+          el.classList.add('text-[#D1D5DB]');
+        }
+      });
+
+      const verdictMessages = [
+        '0 / 3 STARS — EXPLORE HIGH & HIDDEN PATHS FOR STARS!',
+        '1 / 3 STARS COLLECTED — 2 MORE STARS HIDDEN IN THIS LEVEL!',
+        '2 / 3 STARS COLLECTED — ALMOST MASTERED!',
+        '3 / 3 STARS — PERFECT LEVEL MASTERY!'
+      ];
+      document.getElementById('victoryStarVerdict').textContent = verdictMessages[runStarsCount];
+
+      document.getElementById('victoryTime').textContent = formatTime(t);
+      document.getElementById('victoryCoins').textContent = `${gameState.levelCoinsCollected} / 50`;
+      document.getElementById('victoryDeaths').textContent = String(d);
+      document.getElementById('victoryRank').textContent = rank;
+      document.getElementById('victoryBestTime').textContent = formatTime(gameState.levelRecords[lvlId].bestTime);
+
+      const newRecEl = document.getElementById('victoryNewRecord');
+      if (isNewRecord) newRecEl.classList.remove('hidden');
+      else newRecEl.classList.add('hidden');
+
+      const nextBtn = document.getElementById('btnNextLevel');
+      if (lvlId < 15) {
+        nextBtn.textContent = `LEVEL ${String(lvlId + 1).padStart(2, '0')} →`;
+      } else {
+        nextBtn.textContent = 'SELECT LEVEL';
+      }
+
+      evaluateAchievements({ levelCompleted: lvlId, rank });
+      updateHUD();
+      document.getElementById('victoryOverlay').classList.remove('hidden');
+    }
+
+    function returnToMainMenu() {
+      document.getElementById('levelSelectModal').classList.add('hidden');
+      document.getElementById('victoryOverlay').classList.add('hidden');
+      document.getElementById('shopModal').classList.add('hidden');
+      document.getElementById('achievementsModal').classList.add('hidden');
+      document.getElementById('startOverlay').classList.remove('hidden');
+      document.getElementById('hudTimer').textContent = '00:00.00';
+      prevModeBeforeShop = 'start';
+      prevModeBeforeAch = 'start';
+      gameState.mode = 'start';
+      updateHUD();
+    }
+
+    // Button Event Bindings
+    document.getElementById('btnMenuHud').onclick = () => {
+      sfx.unlock();
+      returnToMainMenu();
+    };
+
+    document.getElementById('btnPauseMainMenu').onclick = () => {
+      sfx.unlock();
+      returnToMainMenu();
+    };
+
+    document.getElementById('btnVictoryMenu').onclick = () => {
+      sfx.unlock();
+      returnToMainMenu();
+    };
+
+    document.getElementById('btnStartRun').onclick = () => {
+      sfx.unlock();
+      startLevel(1, true);
+    };
+
+    document.getElementById('btnOpenLevelsFromStart').onclick = () => {
+      sfx.unlock();
+      openLevelSelect();
+    };
+
+    document.getElementById('btnHudLevelBadge').onclick = () => {
+      sfx.unlock();
+      openLevelSelect();
+    };
+
+    document.getElementById('btnStartAchievements').onclick = () => {
+      sfx.unlock();
+      openAchievementsModal();
+    };
+
+    document.getElementById('btnAchievementsHud').onclick = () => {
+      sfx.unlock();
+      openAchievementsModal();
+    };
+
+    document.getElementById('btnCloseAchievements').onclick = () => {
+      closeAchievementsModal();
+    };
+
+    document.querySelectorAll('.ach-filter-btn').forEach(btn => {
+      btn.onclick = () => {
+        gameState.achFilter = btn.getAttribute('data-ach-filter');
+        document.querySelectorAll('.ach-filter-btn').forEach(b => {
+          if (b === btn) b.classList.add('ring-2', 'ring-[#111318]');
+          else b.classList.remove('ring-2', 'ring-[#111318]');
+        });
+        renderAchievementsGrid();
+      };
+    });
+
+    document.getElementById('btnStartShop').onclick = () => {
+      sfx.unlock();
+      openShopModal();
+    };
+
+    document.getElementById('btnOpenShopHud').onclick = () => {
+      sfx.unlock();
+      openShopModal();
+    };
+
+    document.getElementById('btnShop').onclick = () => {
+      sfx.unlock();
+      openShopModal();
+    };
+
+    document.getElementById('btnCloseShop').onclick = () => {
+      closeShopModal();
+    };
+
+    document.getElementById('btnVictoryShop').onclick = () => {
+      sfx.unlock();
+      openShopModal();
+    };
+
+    document.querySelectorAll('.shop-filter-btn').forEach(btn => {
+      btn.onclick = () => {
+        gameState.shopFilter = btn.getAttribute('data-rarity');
+        document.querySelectorAll('.shop-filter-btn').forEach(b => {
+          if (b === btn) b.classList.add('ring-2', 'ring-[#111318]');
+          else b.classList.remove('ring-2', 'ring-[#111318]');
+        });
+        renderShopGrid();
+      };
+    });
+
+    document.getElementById('btnRestartCP').onclick = () => {
+      sfx.unlock();
+      if (gameState.mode === 'victory') {
+        document.getElementById('victoryOverlay').classList.add('hidden');
+        gameState.mode = 'playing';
+      }
+      respawnPlayer();
+    };
+
+    document.getElementById('btnLevelSelect').onclick = () => {
+      sfx.unlock();
+      if (gameState.mode === 'paused') closeLevelSelect();
+      else openLevelSelect();
+    };
+
+    document.getElementById('btnCloseLevelSelect').onclick = () => {
+      closeLevelSelect();
+    };
+
+    document.getElementById('btnFullResetRun').onclick = () => {
+      sfx.unlock();
+      startLevel(gameState.currentLevel, true);
+    };
+
+    document.getElementById('btnPlayAgain').onclick = () => {
+      sfx.unlock();
+      startLevel(gameState.currentLevel, true);
+    };
+
+    document.getElementById('btnNextLevel').onclick = () => {
+      sfx.unlock();
+      if (gameState.currentLevel < 15) {
+        startLevel(gameState.currentLevel + 1, true);
+      } else {
+        document.getElementById('victoryOverlay').classList.add('hidden');
+        openLevelSelect();
+      }
+    };
+
+    document.getElementById('btnAudioToggle').onclick = () => {
+      sfx.enabled = !sfx.enabled;
+      if (sfx.enabled) sfx.unlock();
+      document.getElementById('btnAudioToggle').textContent = sfx.enabled ? 'SFX: ON' : 'SFX: OFF';
+    };
+
+    document.getElementById('btnTouchToggle').onclick = () => {
+      document.getElementById('touchControls').classList.toggle('hidden');
+    };
+
+    // --------------------------------------------------------------------------
+    // 16. MAIN FIXED-TIMESTEP 60 FPS GAME LOOP
+    // --------------------------------------------------------------------------
+    let lastFrameTime = 0;
+    let accumulator = 0;
+
+    function gameLoop(timestamp) {
+      if (!lastFrameTime) lastFrameTime = timestamp;
+      const frameDt = Math.min(0.05, (timestamp - lastFrameTime) / 1000);
+      lastFrameTime = timestamp;
+      accumulator += frameDt;
+
+      while (accumulator >= PHYS.FIXED_DT) {
+        updatePhysics(PHYS.FIXED_DT);
+        accumulator -= PHYS.FIXED_DT;
+      }
+
+      if (gameState.mode === 'playing') {
+        document.getElementById('hudTimer').textContent = formatTime(gameState.elapsedTime);
+      }
+
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = function () {
+      resizeCanvas();
+      startLevel(1, false);
+      updateHUD();
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>
